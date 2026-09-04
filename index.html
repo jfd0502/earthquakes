@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Earthquake Simulator</title>
+    <style>
+        :root {
+            --bg-color: #1e1e24;
+            --panel-bg: #2b2b36;
+            --text-main: #f8f8f2;
+            --accent: #ffb86c;
+            --p-wave: #8be9fd;
+            --s-wave: #ff79c6;
+            --highlight: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app-container {
+            display: flex;
+            width: 100%;
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .side-panel {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .side-panel::-webkit-scrollbar {
+            display: none;
+        }
+
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        canvas {
+            cursor: pointer;
+        }
+
+        .card {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-left: 4px solid var(--accent);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .min-btn {
+            background: transparent;
+            color: #888;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 5px;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+        .min-btn:hover { color: var(--highlight); }
+
+        h1 { margin: 0; font-size: 1.4rem; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 10px; width: 100%;}
+        h2 { margin: 0; font-size: 1.1rem; }
+
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
+        .stat-label { font-weight: bold; color: #aaa; }
+
+        /* Toolbox & Drag Drop */
+        .toolbox { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .tool-item {
+            background: #383847; padding: 10px; border-radius: 8px; cursor: grab;
+            display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+            user-select: none; border: 2px solid transparent; transition: border 0.2s;
+        }
+        .tool-item:active { cursor: grabbing; }
+        .tool-item:hover { border-color: #6272a4; }
+        .tool-icon { width: 20px; height: 20px; border-radius: 50%; }
+
+        .controls-group { display: flex; flex-direction: column; gap: 12px; margin-top: 15px;}
+        
+        .btn-group { display: flex; gap: 10px; }
+
+        button.action-btn {
+            background-color: #ff5555; color: white; border: none; padding: 10px; border-radius: 6px;
+            font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
+        }
+        button.action-btn:hover:not(:disabled) { background-color: #ff7777; }
+        button.action-btn:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+        
+        button#resetBtn { background-color: #8be9fd; color: #1e1e24; }
+        button#resetBtn:hover:not(:disabled) { background-color: #a4ffff; }
+        
+        .btn-secondary { background-color: #6272a4; }
+        .btn-secondary:hover:not(:disabled) { background-color: #7a8cb8; }
+
+        input[type=range] { width: 100%; cursor: pointer; }
+
+        /* Seismographs */
+        .seismograph-container { display: flex; flex-direction: column; gap: 10px; }
+        .seismograph-box { background: #1e1e24; border-radius: 6px; padding: 10px; position: relative;}
+        .seismograph-title { font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; }
+        
+        .seismo-canvas { 
+            width: 100%; height: 60px; background: #2b2b36; border-radius: 4px; cursor: pointer;
+            transition: box-shadow 0.2s; 
+        }
+        .seismo-canvas:hover { box-shadow: 0 0 8px rgba(139, 233, 253, 0.4); }
+
+        .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+        .color-box { width: 16px; height: 16px; border-radius: 4px; margin-right: 10px; }
+
+        .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #aaa; cursor: pointer; }
+        .toggle-row input { cursor: pointer; }
+
+        /* Modal Styles */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background-color: var(--panel-bg); padding: 25px; border-radius: 12px;
+            width: 90%; max-width: 850px; box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+            border-left: 4px solid var(--highlight); position: relative;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div class="side-panel">
+        <div class="card" style="border-left-color: #ff5555;">
+            <div class="card-header">
+                <h2>Interactive Lab Toolbox</h2>
+                <button class="min-btn" title="Minimize box">−</button>
+            </div>
+            <div class="card-content">
+                <p style="font-size: 0.85rem; color: #bd93f9; margin-top: 0;">Drag items onto the Earth. Drag stations directly on the globe to move them!</p>
+                
+                <div class="toolbox">
+                    <div class="tool-item" draggable="true" id="tool-epicenter" data-type="epicenter">
+                        <div class="tool-icon" style="background: repeating-linear-gradient(45deg, #ff5555, #ff5555 4px, #cc0000 4px, #cc0000 8px); border: 2px solid white; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; color: white;">!</div> Epicenter
+                    </div>
+                    <div class="tool-item" draggable="true" id="tool-station-0" data-type="station" data-id="0">
+                        <div class="tool-icon" style="background: #50fa7b;"></div> Station 1
+                    </div>
+                    <div class="tool-item" draggable="true" id="tool-station-1" data-type="station" data-id="1">
+                        <div class="tool-icon" style="background: #f1fa8c;"></div> Station 2
+                    </div>
+                    <div class="tool-item" draggable="true" id="tool-station-2" data-type="station" data-id="2">
+                        <div class="tool-icon" style="background: #8be9fd;"></div> Station 3
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <label class="toggle-row">
+                        <input type="checkbox" id="degreeToggle"> Show Epicentral Angle Markers (°)
+                    </label>
+                    <label class="toggle-row">
+                        <input type="checkbox" id="shadowToggle"> Show Shadow Zones
+                    </label>
+
+                    <div class="btn-group">
+                        <button class="action-btn" id="triggerBtn" style="flex: 1;" disabled>TRIGGER</button>
+                        <button class="action-btn" id="resetBtn" style="flex: 1;" disabled>RESET</button>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <label for="timeSlider" style="font-size: 0.85rem; color: #aaa;">Slow-Mo Time Scrubber</label>
+                        <input type="range" id="timeSlider" min="0" max="650" value="0" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="border-left-color: #50fa7b; flex: 1;">
+            <div class="card-header">
+                <h2>Seismographs</h2>
+                <button class="min-btn" title="Minimize box">−</button>
+            </div>
+            <div class="card-content" style="height: 100%;">
+                <button class="action-btn btn-secondary" id="clearStationsBtn" style="width: 100%; font-size: 0.85rem; padding: 8px;">Clear Stations</button>
+                <div id="seismographs-wrapper" class="seismograph-container" style="margin-top: 15px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="simCanvas" width="650" height="650"></canvas>
+    </div>
+
+    <div class="side-panel">
+        <div class="card">
+            <div class="card-header">
+                <h1>Layer Data</h1>
+                <button class="min-btn" title="Minimize box">−</button>
+            </div>
+            <div class="card-content">
+                <p style="font-size: 0.85rem; color: #bd93f9; margin-top: 0;">Click any layer on the Earth to view stats.</p>
+                <h2 id="layer-name" style="margin-top: 15px;">Select a Layer</h2>
+                <div class="stat-row"><span class="stat-label">Thickness/Radius:</span><span id="layer-radius">--</span></div>
+                <div class="stat-row"><span class="stat-label">State:</span><span id="layer-state">--</span></div>
+                <div class="stat-row"><span class="stat-label">Temperature:</span><span id="layer-temp">--</span></div>
+                <div class="stat-row"><span class="stat-label">Density:</span><span id="layer-density">--</span></div>
+                <div class="stat-row"><span class="stat-label">P-Wave Range:</span><span id="layer-prange">--</span></div>
+                <div class="stat-row"><span class="stat-label">S-Wave Range:</span><span id="layer-srange">--</span></div>
+            </div>
+        </div>
+
+        <div class="card" style="border-left-color: #8be9fd;">
+            <div class="card-header">
+                <h2>Live Wavefront Data</h2>
+                <button class="min-btn" title="Minimize box">−</button>
+            </div>
+            <div class="card-content">
+                <p style="font-size: 0.8rem; color: #aaa; margin: 0 0 10px 0;">Calculates velocity of the wave traveling straight through center.</p>
+                <div class="stat-row"><span class="stat-label">Path Position:</span><span id="live-leg">At Surface</span></div>
+                <div class="stat-row"><span class="stat-label">Current Depth:</span><span id="live-depth">0 km</span></div>
+                <div class="stat-row"><span class="stat-label">P-Wave Velocity:</span><span id="live-pvel">0.0 km/s</span></div>
+                <div class="stat-row"><span class="stat-label">S-Wave Velocity:</span><span id="live-svel">0.0 km/s</span></div>
+            </div>
+        </div>
+
+        <div class="card" style="border-left-color: #f1fa8c; margin-top: auto;">
+            <div class="card-header">
+                <h2>Legend</h2>
+                <button class="min-btn" title="Minimize box">−</button>
+            </div>
+            <div class="card-content">
+                <div class="legend-item"><div class="color-box" style="background-color: var(--p-wave);"></div><span>Primary (P) - Pass through all</span></div>
+                <div class="legend-item"><div class="color-box" style="background-color: var(--s-wave);"></div><span>Secondary (S) - Stop at liquid</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Detailed Seismograph -->
+<div id="seismoModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Station Readout</h2>
+            <button id="closeModalBtn" class="min-btn" style="font-size: 2rem;">&times;</button>
+        </div>
+        <p style="font-size: 0.9rem; color: #aaa; margin-top: -10px; margin-bottom: 15px;">High-resolution timeline. Use the time grid to calculate the S-P interval.</p>
+        <canvas id="modalCanvas" width="800" height="200" style="width: 100%; background: #1e1e24; border-radius: 6px;"></canvas>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const triggerBtn = document.getElementById('triggerBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const timeSlider = document.getElementById('timeSlider');
+    const clearStationsBtn = document.getElementById('clearStationsBtn');
+    const degreeToggle = document.getElementById('degreeToggle');
+    const shadowToggle = document.getElementById('shadowToggle');
+    
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const maxRadius = 270; 
+    const maxTime = 650; // Total ticks, mapped to 65 minutes
+
+    const layers = [
+        { id: 'inner_core', name: 'Inner Core', radius: maxRadius * 0.19, color: '#ff5555', state: 'Solid', temp: '~5,400 °C', density: '12.8 - 13.1 g/cm³', pVelRange: [11.2, 11.2], sVelRange: [3.6, 3.6] },
+        { id: 'outer_core', name: 'Outer Core', radius: maxRadius * 0.53, color: '#ffb86c', state: 'Liquid', temp: '4,000 - 5,000 °C', density: '9.9 - 12.2 g/cm³', pVelRange: [8.0, 10.3], sVelRange: [0, 0] },
+        { id: 'mantle', name: 'Mantle', radius: maxRadius * 0.98, color: '#f1fa8c', state: 'Solid / Plastic', temp: '1,000 - 3,700 °C', density: '3.4 - 5.6 g/cm³', pVelRange: [8.0, 13.7], sVelRange: [4.5, 7.3] },
+        { id: 'crust', name: 'Crust', radius: maxRadius, color: '#7a8cb8', state: 'Solid', temp: '20 - 400 °C', density: '2.2 - 2.9 g/cm³', pVelRange: [5.0, 7.0], sVelRange: [3.0, 4.0] }
+    ];
+
+    const stationColors = ['#50fa7b', '#f1fa8c', '#8be9fd'];
+    
+    let selectedLayer = null;
+    let epicenterAngle = null; 
+    let stations = [];
+    let animationTime = 0;
+    let isAnimating = false;
+    let animationId = null;
+    
+    let draggedCanvasStation = null;
+    let justDroppedStation = false;
+    let activeModalStation = null;
+    
+    const pSpeed = 1.8; 
+    const sSpeed = 1.0;
+
+    // --- MINIMIZE BUTTONS LOGIC ---
+    document.querySelectorAll('.min-btn').forEach(btn => {
+        if (btn.id !== 'closeModalBtn') {
+            btn.addEventListener('click', (e) => {
+                const content = e.target.closest('.card').querySelector('.card-content');
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    e.target.innerText = '−';
+                } else {
+                    content.style.display = 'none';
+                    e.target.innerText = '+';
+                }
+            });
+        }
+    });
+
+    // --- MODAL LOGIC ---
+    document.getElementById('seismographs-wrapper').addEventListener('click', (e) => {
+        if (e.target.classList.contains('seismo-canvas')) {
+            const stId = parseInt(e.target.id.split('-')[1]);
+            activeModalStation = stations.find(s => s.id === stId);
+            if (activeModalStation) {
+                document.getElementById('modalTitle').innerText = `Station ${stId + 1} Detailed Readout`;
+                document.getElementById('modalTitle').style.color = activeModalStation.color;
+                document.querySelector('#seismoModal .modal-content').style.borderLeftColor = activeModalStation.color;
+                document.getElementById('seismoModal').classList.add('show');
+                render(); 
+            }
+        }
+    });
+
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+        document.getElementById('seismoModal').classList.remove('show');
+        activeModalStation = null;
+    });
+
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('seismoModal');
+        if (e.target === modal) {
+            modal.classList.remove('show');
+            activeModalStation = null;
+        }
+    });
+
+    // --- HTML DRAG AND DROP LOGIC ---
+    let draggedData = null;
+
+    document.querySelectorAll('.tool-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedData = { type: item.dataset.type, id: item.dataset.id };
+            e.dataTransfer.setData('text/plain', 'tool'); 
+        });
+    });
+
+    canvas.addEventListener('dragover', (e) => { e.preventDefault(); });
+
+    canvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!draggedData) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const dx = e.clientX - rect.left - cx;
+        const dy = e.clientY - rect.top - cy;
+        const angle = Math.atan2(dy, dx);
+
+        if (draggedData.type === 'epicenter') {
+            epicenterAngle = angle;
+            triggerBtn.disabled = false;
+            resetBtn.disabled = false;
+            isAnimating = false;
+            animationTime = 0;
+            timeSlider.value = 0;
+            timeSlider.disabled = false;
+            stations.forEach(st => generateSingleSeismogram(st));
+        } else if (draggedData.type === 'station') {
+            const stId = parseInt(draggedData.id);
+            const existingStation = stations.find(s => s.id === stId);
+            
+            if (existingStation) {
+                existingStation.angle = angle;
+                if (epicenterAngle !== null) generateSingleSeismogram(existingStation);
+            } else {
+                const newStation = { id: stId, angle: angle, color: stationColors[stId], seismoData: [] };
+                stations.push(newStation);
+                
+                const wrapper = document.getElementById('seismographs-wrapper');
+                const div = document.createElement('div');
+                div.className = 'seismograph-box';
+                div.id = `seismo-box-${stId}`;
+                div.innerHTML = `
+                    <div class="seismograph-title" style="color: ${stationColors[stId]};">Station ${stId + 1}</div>
+                    <canvas id="seismo-${stId}" class="seismo-canvas" width="300" height="60" title="Click for detail"></canvas>
+                `;
+                let inserted = false;
+                for (let child of wrapper.children) {
+                    if (parseInt(child.id.split('-')[2]) > stId) {
+                        wrapper.insertBefore(div, child);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) wrapper.appendChild(div);
+
+                if (epicenterAngle !== null) generateSingleSeismogram(newStation);
+            }
+        }
+        draggedData = null;
+        render();
+    });
+
+    // --- CANVAS STATION DRAGGING LOGIC ---
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const dx = e.clientX - rect.left - cx;
+        const dy = e.clientY - rect.top - cy;
+        const clickAngle = Math.atan2(dy, dx);
+        const distance = Math.hypot(dx, dy);
+
+        if (Math.abs(distance - maxRadius) < 30) {
+            for (let st of stations) {
+                let angleDiff = Math.abs(st.angle - clickAngle);
+                if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+                
+                if (angleDiff < 0.15) { 
+                    draggedCanvasStation = st;
+                    return;
+                }
+            }
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (draggedCanvasStation) {
+            const rect = canvas.getBoundingClientRect();
+            const dx = e.clientX - rect.left - cx;
+            const dy = e.clientY - rect.top - cy;
+            draggedCanvasStation.angle = Math.atan2(dy, dx);
+            render();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (draggedCanvasStation) {
+            if (epicenterAngle !== null) generateSingleSeismogram(draggedCanvasStation);
+            draggedCanvasStation = null;
+            justDroppedStation = true; 
+            render();
+        }
+    });
+
+    function drawLayerLabels() {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(Math.PI / 4); 
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.font = 'bold 13px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("Crust", 0, maxRadius - 15);
+        ctx.fillText("Mantle", 0, layers[1].radius + (layers[2].radius - layers[1].radius)/2);
+        ctx.fillText("Outer Core", 0, layers[0].radius + (layers[1].radius - layers[0].radius)/2);
+        ctx.fillText("Inner Core", 0, 15);
+        ctx.restore();
+    }
+
+    function drawDegreeMarkers() {
+        if (!degreeToggle.checked || epicenterAngle === null) return;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.font = '11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let deg = 0; deg < 360; deg += 30) {
+            const rad = epicenterAngle + (deg * Math.PI / 180);
+            const x1 = (maxRadius + 2) * Math.cos(rad);
+            const y1 = (maxRadius + 2) * Math.sin(rad);
+            const x2 = (maxRadius + 8) * Math.cos(rad);
+            const y2 = (maxRadius + 8) * Math.sin(rad);
+
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            let relDeg = deg % 360;
+            if (relDeg > 180) relDeg = 360 - relDeg;
+
+            const tx = (maxRadius + 20) * Math.cos(rad);
+            const ty = (maxRadius + 20) * Math.sin(rad);
+
+            ctx.fillStyle = (relDeg === 103 || relDeg === 142) ? '#ff79c6' : '#f8f8f2';
+            ctx.fillText(`${relDeg}°`, tx, ty);
+        }
+        ctx.restore();
+    }
+
+    function drawEarth() {
+        for (let i = layers.length - 1; i >= 0; i--) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, layers[i].radius, 0, Math.PI * 2);
+            ctx.fillStyle = layers[i].color;
+            ctx.fill();
+            
+            if (selectedLayer && selectedLayer.id === layers[i].id) {
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'var(--highlight)';
+            } else {
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+            }
+            ctx.stroke();
+        }
+        drawLayerLabels();
+        drawDegreeMarkers();
+    }
+
+    function drawShadowZones() {
+        if (!shadowToggle.checked || epicenterAngle === null) return;
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // 1. Draw S-Wave Shadow Zone
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, maxRadius, epicenterAngle + 2.02, epicenterAngle + (Math.PI * 2) - 2.02);
+        ctx.fillStyle = 'rgba(255, 121, 198, 0.15)'; 
+        ctx.fill();
+
+        // 2. Draw P-Wave Shadow Zone 
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, maxRadius, epicenterAngle + 2.02, epicenterAngle + 2.48);
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, maxRadius, epicenterAngle - 2.48, epicenterAngle - 2.02);
+        ctx.fillStyle = 'rgba(139, 233, 253, 0.25)'; 
+        ctx.fill();
+
+        ctx.font = 'bold 13px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillStyle = 'rgba(255, 121, 198, 0.9)';
+        const sLabelRad = epicenterAngle + Math.PI;
+        ctx.fillText("S-Wave Shadow Zone", (maxRadius * 0.82) * Math.cos(sLabelRad), (maxRadius * 0.82) * Math.sin(sLabelRad));
+
+        ctx.fillStyle = 'rgba(139, 233, 253, 0.9)';
+        const pLabelRad1 = epicenterAngle + 2.25;
+        ctx.fillText("P & S Shadow", (maxRadius * 0.85) * Math.cos(pLabelRad1), (maxRadius * 0.85) * Math.sin(pLabelRad1));
+        const pLabelRad2 = epicenterAngle - 2.25;
+        ctx.fillText("P & S Shadow", (maxRadius * 0.85) * Math.cos(pLabelRad2), (maxRadius * 0.85) * Math.sin(pLabelRad2));
+
+        ctx.restore();
+    }
+
+    function drawEpicenter() {
+        if (epicenterAngle === null) return;
+        const ex = cx + maxRadius * Math.cos(epicenterAngle);
+        const ey = cy + maxRadius * Math.sin(epicenterAngle);
+        
+        ctx.beginPath();
+        ctx.arc(ex, ey, 10, 0, Math.PI * 2);
+        ctx.fillStyle = (animationTime > 0 || isAnimating) ? '#ff5555' : '#ffb86c';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e1e24';
+        ctx.fill();
+    }
+
+    function drawStations() {
+        stations.forEach((st) => {
+            const sx = cx + (maxRadius) * Math.cos(st.angle);
+            const sy = cy + (maxRadius) * Math.sin(st.angle);
+            ctx.save();
+            ctx.translate(sx, sy);
+            ctx.rotate(st.angle + Math.PI/2); 
+            
+            ctx.fillStyle = st.color;
+            ctx.strokeStyle = '#ffffff'; 
+            ctx.lineWidth = 1.5;
+            
+            ctx.fillRect(-8, -6, 16, 6);
+            ctx.strokeRect(-8, -6, 16, 6);
+            
+            ctx.beginPath();
+            ctx.arc(0, -6, 8, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, -14);
+            ctx.lineTo(0, -20);
+            ctx.moveTo(-4, -18);
+            ctx.lineTo(4, -18);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+    }
+
+    function drawWaves() {
+        if (animationTime <= 0) return;
+
+        ctx.save();
+        
+        ctx.beginPath();
+        ctx.arc(cx, cy, maxRadius, 0, Math.PI * 2);
+        ctx.clip(); 
+
+        ctx.translate(cx, cy);
+        ctx.rotate(epicenterAngle + Math.PI / 2);
+
+        const R = maxRadius;
+        const rCore = layers[1].radius; 
+        const rInner = layers[0].radius; 
+
+        // --- S WAVES ---
+        const sDist = animationTime * sSpeed;
+        ctx.save();
+        
+        const alpha = Math.asin(rCore / R); 
+        ctx.beginPath();
+        ctx.arc(0, 0, maxRadius * 4, 0, Math.PI * 2, false); 
+        const startAngle = -alpha;            
+        const endAngle = -Math.PI + alpha;     
+        
+        ctx.moveTo(rCore * Math.cos(alpha), -rCore * Math.sin(alpha));
+        ctx.arc(0, 0, rCore, startAngle, endAngle, true); 
+        ctx.lineTo(-maxRadius * 4 * Math.sin(alpha), -R + maxRadius * 4 * Math.cos(alpha)); 
+        ctx.lineTo(maxRadius * 4 * Math.sin(alpha), -R + maxRadius * 4 * Math.cos(alpha)); 
+        ctx.closePath(); 
+        ctx.clip(); 
+
+        ctx.strokeStyle = 'rgba(255, 121, 198, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, -R, sDist, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.restore();
+
+        // --- P WAVES ---
+        const vMantle = pSpeed;
+        const vOuter = pSpeed * 0.65; // Slows in liquid outer core
+        const vInner = pSpeed * 1.35; // Speeds up in dense solid inner core
+
+        const t1 = (R - rCore) / vMantle;
+        const t2 = (rCore - rInner) / vOuter;
+        const t3 = (2 * rInner) / vInner;
+        const t4 = (rCore - rInner) / vOuter;
+        const tOuterFull = (2 * rCore) / vOuter;
+        
+        const centerCone = 0.35; // Cone angle for fast inner core wave
+
+        // 1. UNREFRACTED MANTLE P-WAVE (Direct)
+        ctx.save();
+        ctx.beginPath();
+        // Allow drawing only outside the outer core AND within the non-shadow zone (< 2.02 rad)
+        ctx.arc(0, 0, rCore, -Math.PI/2 - 2.02, -Math.PI/2 + 2.02);
+        ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + 2.02, -Math.PI/2 - 2.02, true);
+        ctx.clip(); 
+
+        ctx.strokeStyle = 'rgba(139, 233, 253, 0.8)'; 
+        ctx.lineWidth = 3; 
+        ctx.beginPath();
+        ctx.arc(0, -R, animationTime * vMantle, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore(); 
+
+        if (animationTime > t1) {
+            
+            // --- 2. SLOW OUTER CORE FLANKS ---
+            let rSlowInside = (R - rCore) + (animationTime - t1) * vOuter;
+            let rSlowOutside = (R + rCore) + (animationTime - (t1 + tOuterFull)) * vMantle;
+
+            // 2A. Flanks INSIDE Outer Core
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 0, rCore, 0, Math.PI * 2);      // Inside outer core
+            ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); // Exclude inner core
+            ctx.clip();
+            
+            // Exclude the center cone so the inner core fast wave has room
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, Math.PI/2 - centerCone, false);
+            ctx.lineTo(0,0);
+            ctx.clip();
+
+            ctx.strokeStyle = 'rgba(139, 233, 253, 0.7)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, -R, rSlowInside, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // 2B. Flanks EXITING into Bottom Mantle
+            if (animationTime > t1 + tOuterFull) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(-R*2, -R*2, R*4, R*4);
+                ctx.arc(0, 0, rCore, 0, Math.PI * 2, true); // Outside outer core
+                ctx.clip();
+
+                // Only past the 2.48 rad shadow zone
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + 2.48, Math.PI*1.5 - 2.48, false);
+                ctx.lineTo(0,0);
+                ctx.clip();
+                
+                // Exclude center cone
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, Math.PI/2 - centerCone, false);
+                ctx.lineTo(0,0);
+                ctx.clip();
+
+                ctx.strokeStyle = 'rgba(139, 233, 253, 0.5)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, -R, rSlowOutside, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // --- 3. CENTER BULGE (Top Outer, Inner, and Bottom Outer Core) ---
+            let rCenter;
+            let phase = 0; 
+            
+            if (animationTime <= t1 + t2) {
+                // Phase 0: Descending through top Outer Core
+                rCenter = (R - rCore) + (animationTime - t1) * vOuter;
+                phase = 0;
+            } else if (animationTime <= t1 + t2 + t3) {
+                // Phase 1: Inside Inner Core (Fast)
+                rCenter = (R - rInner) + (animationTime - (t1 + t2)) * vInner;
+                phase = 1;
+            } else if (animationTime <= t1 + t2 + t3 + t4) {
+                // Phase 2: Ascending through bottom Outer Core
+                rCenter = (R + rInner) + (animationTime - (t1 + t2 + t3)) * vOuter;
+                phase = 2;
+            } else {
+                // Phase 3: Ascending through bottom Mantle
+                rCenter = (R + rCore) + (animationTime - (t1 + t2 + t3 + t4)) * vMantle;
+                phase = 3;
+            }
+
+            ctx.save();
+            
+            // Restrict strictly to the center cone
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 - centerCone, Math.PI/2 + centerCone, false);
+            ctx.lineTo(0,0);
+            ctx.clip();
+
+            // Restrict based on phase
+            ctx.beginPath();
+            if (phase === 0) {
+                ctx.arc(0, 0, rCore, 0, Math.PI * 2);
+                ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); 
+                ctx.rect(-R*2, -R*2, R*4, R*2); // Top half only
+            } else if (phase === 1) {
+                ctx.arc(0, 0, rInner, 0, Math.PI * 2); // Inside Inner Core
+            } else if (phase === 2) {
+                ctx.arc(0, 0, rCore, 0, Math.PI * 2);
+                ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); 
+                ctx.rect(-R*2, 0, R*4, R*2); // Bottom half only
+            } else {
+                ctx.rect(-R*2, -R*2, R*4, R*4);
+                ctx.arc(0, 0, rCore, 0, Math.PI * 2, true); // Mantle
+                ctx.rect(-R*2, 0, R*4, R*2); // Bottom half only
+            }
+            ctx.clip();
+
+            ctx.strokeStyle = phase === 1 ? 'rgba(139, 233, 253, 1)' : 'rgba(139, 233, 253, 0.8)'; 
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, -R, rCenter, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        ctx.restore();
+    }
+
+    function updateLiveStats() {
+        if (animationTime === 0 && !isAnimating) {
+            document.getElementById('live-leg').innerText = "At Surface";
+            document.getElementById('live-depth').innerText = "0 km";
+            document.getElementById('live-pvel').innerText = "0.0 km/s";
+            document.getElementById('live-svel').innerText = "0.0 km/s";
+            return;
+        }
+
+        const pDist = animationTime * pSpeed;
+        const sDist = animationTime * sSpeed;
+
+        const pCenterDist = Math.abs(maxRadius - pDist);
+        const sCenterDist = Math.abs(maxRadius - sDist);
+
+        const pExiting = pDist > maxRadius;
+        document.getElementById('live-leg').innerText = pExiting ? "Exiting (Ascending)" : "Ingoing (Descending)";
+
+        const getLayerAtRadius = (r) => layers.find(l => r <= l.radius) || layers[3];
+        const pLayer = getLayerAtRadius(pCenterDist);
+        const sLayer = getLayerAtRadius(sCenterDist);
+
+        const realDepth = Math.round((pDist / maxRadius) * 6371);
+        
+        const getVel = (layer, rFromCenter, isP) => {
+            const range = isP ? layer.pVelRange : layer.sVelRange;
+            if (range[0] === range[1]) return range[0];
+            
+            const layerIndex = layers.findIndex(l => l.id === layer.id);
+            const innerRadius = layerIndex > 0 ? layers[layerIndex - 1].radius : 0;
+            const outerRadius = layer.radius;
+            
+            const ratio = Math.max(0, Math.min(1, (outerRadius - rFromCenter) / (outerRadius - innerRadius)));
+            return range[0] + (ratio * (range[1] - range[0]));
+        }
+
+        const pVel = getVel(pLayer, pCenterDist, true);
+        const sVel = sCenterDist <= layers[1].radius ? 0 : getVel(sLayer, sCenterDist, false);
+
+        if (pDist > maxRadius * 2) {
+             document.getElementById('live-leg').innerText = "Exited Earth";
+             document.getElementById('live-depth').innerText = "12,742 km";
+             document.getElementById('live-pvel').innerText = "--";
+             document.getElementById('live-svel').innerText = "--";
+        } else {
+            document.getElementById('live-depth').innerText = `${realDepth} km`;
+            document.getElementById('live-pvel').innerText = `${pVel.toFixed(1)} km/s`;
+            document.getElementById('live-svel').innerText = sVel === 0 ? "Blocked (0.0 km/s)" : `${sVel.toFixed(1)} km/s`;
+        }
+    }
+
+    function generateSingleSeismogram(st) {
+        if (epicenterAngle === null) return;
+        st.seismoData = [];
+        const delta = Math.abs(epicenterAngle - st.angle);
+        const shortestDelta = Math.min(delta, 2 * Math.PI - delta);
+        const chord = 2 * maxRadius * Math.sin(shortestDelta / 2);
+        
+        const maxChord = 2 * maxRadius;
+        const attenuation = Math.max(0.15, 1 - (chord / maxChord));
+        
+        const pShadow = shortestDelta > 2.02 && shortestDelta < 2.48; 
+        const sShadow = shortestDelta > 2.02; 
+        
+        const pArrival = Math.round(chord / pSpeed);
+        const sArrival = Math.round(chord / sSpeed);
+
+        st.pArrival = pArrival;
+        st.sArrival = sArrival;
+        st.pShadow = pShadow;
+        st.sShadow = sShadow;
+
+        const pAmp = 15 * attenuation;
+        const sAmp = 30 * attenuation;
+
+        for (let t = 0; t <= maxTime; t++) {
+            let val = (Math.random() - 0.5) * 1.5; 
+            
+            if (!pShadow && t >= pArrival && t < pArrival + 40) {
+                const envelope = Math.sin(((t - pArrival) / 40) * Math.PI);
+                val += Math.sin((t - pArrival) * 0.8) * pAmp * envelope;
+            }
+            if (!sShadow && t >= sArrival && t < sArrival + 60) {
+                const envelope = Math.sin(((t - sArrival) / 60) * Math.PI);
+                val += Math.sin((t - sArrival) * 0.5) * sAmp * envelope;
+            }
+            st.seismoData.push(val);
+        }
+    }
+
+    function drawSeismographs() {
+        stations.forEach((st) => {
+            const sCanvas = document.getElementById(`seismo-${st.id}`);
+            if (!sCanvas) return;
+            const sCtx = sCanvas.getContext('2d');
+            const w = sCanvas.width;
+            const h = sCanvas.height;
+            const midY = h / 2 - 5;
+
+            sCtx.clearRect(0, 0, w, h);
+
+            // Draw time grid
+            sCtx.strokeStyle = '#383847';
+            sCtx.lineWidth = 1;
+            sCtx.fillStyle = '#666';
+            sCtx.textAlign = 'center';
+            sCtx.font = '9px "Segoe UI", sans-serif';
+            for (let i = 0; i <= maxTime; i += 100) {
+                const x = (i / maxTime) * w;
+                sCtx.beginPath();
+                sCtx.moveTo(x, 0);
+                sCtx.lineTo(x, h);
+                sCtx.stroke();
+                if (i > 0) sCtx.fillText(`${i / 10}m`, x, h - 2);
+            }
+
+            if (!st.seismoData || st.seismoData.length === 0) return;
+
+            const activeEnd = Math.min(animationTime, st.seismoData.length - 1);
+
+            sCtx.strokeStyle = st.color;
+            sCtx.lineWidth = 1.8;
+            sCtx.beginPath();
+            for (let t = 0; t <= activeEnd; t++) {
+                const x = (t / maxTime) * w;
+                const y = midY + st.seismoData[t];
+                if (t === 0) sCtx.moveTo(x, y);
+                else sCtx.lineTo(x, y);
+            }
+            sCtx.stroke();
+
+            if (!st.pShadow && animationTime >= st.pArrival && st.pArrival <= maxTime) {
+                const px = (st.pArrival / maxTime) * w;
+                sCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
+                sCtx.setLineDash([2, 2]);
+                sCtx.beginPath();
+                sCtx.moveTo(px, 0);
+                sCtx.lineTo(px, h);
+                sCtx.stroke();
+                sCtx.setLineDash([]);
+                sCtx.fillStyle = '#8be9fd';
+                sCtx.fillText('P', px + 4, 10);
+            }
+
+            if (!st.sShadow && animationTime >= st.sArrival && st.sArrival <= maxTime) {
+                const sx = (st.sArrival / maxTime) * w;
+                sCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
+                sCtx.setLineDash([2, 2]);
+                sCtx.beginPath();
+                sCtx.moveTo(sx, 0);
+                sCtx.lineTo(sx, h);
+                sCtx.stroke();
+                sCtx.setLineDash([]);
+                sCtx.fillStyle = '#ff79c6';
+                sCtx.fillText('S', sx + 4, 10);
+            }
+
+            const currentX = (animationTime / maxTime) * w;
+            sCtx.strokeStyle = '#ffffff';
+            sCtx.lineWidth = 1.5;
+            sCtx.beginPath();
+            sCtx.moveTo(currentX, 0);
+            sCtx.lineTo(currentX, h);
+            sCtx.stroke();
+        });
+    }
+
+    function drawModalSeismograph() {
+        if (!activeModalStation) return;
+        
+        const mCanvas = document.getElementById('modalCanvas');
+        const mCtx = mCanvas.getContext('2d');
+        const w = mCanvas.width;
+        const h = mCanvas.height;
+        const midY = h / 2 - 10;
+
+        mCtx.clearRect(0, 0, w, h);
+
+        // Draw Time Grid
+        mCtx.strokeStyle = '#383847';
+        mCtx.lineWidth = 1;
+        mCtx.fillStyle = '#aaa';
+        mCtx.font = '11px "Segoe UI", sans-serif';
+        mCtx.textAlign = 'center';
+        
+        for (let i = 0; i <= maxTime; i += 50) {
+            const x = (i / maxTime) * w;
+            mCtx.beginPath();
+            mCtx.moveTo(x, 0);
+            mCtx.lineTo(x, h);
+            mCtx.stroke();
+            if (i % 100 === 0) {
+                mCtx.fillText(`${i / 10} min`, x, h - 8);
+            }
+        }
+
+        if (!activeModalStation.seismoData || activeModalStation.seismoData.length === 0) return;
+
+        const activeEnd = Math.min(animationTime, activeModalStation.seismoData.length - 1);
+
+        mCtx.strokeStyle = activeModalStation.color;
+        mCtx.lineWidth = 2.5;
+        mCtx.beginPath();
+        
+        const ampScale = 3; 
+
+        for (let t = 0; t <= activeEnd; t++) {
+            const x = (t / maxTime) * w;
+            const y = midY + (activeModalStation.seismoData[t] * ampScale);
+            if (t === 0) mCtx.moveTo(x, y);
+            else mCtx.lineTo(x, y);
+        }
+        mCtx.stroke();
+
+        mCtx.font = '14px "Segoe UI", sans-serif';
+        mCtx.textAlign = 'left';
+        
+        if (!activeModalStation.pShadow && animationTime >= activeModalStation.pArrival && activeModalStation.pArrival <= maxTime) {
+            const px = (activeModalStation.pArrival / maxTime) * w;
+            mCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
+            mCtx.setLineDash([4, 4]);
+            mCtx.beginPath();
+            mCtx.moveTo(px, 0);
+            mCtx.lineTo(px, h);
+            mCtx.stroke();
+            mCtx.setLineDash([]);
+            mCtx.fillStyle = '#8be9fd';
+            mCtx.fillText(`P-Wave: ${(activeModalStation.pArrival / 10).toFixed(1)} min`, px + 5, 20);
+        }
+
+        if (!activeModalStation.sShadow && animationTime >= activeModalStation.sArrival && activeModalStation.sArrival <= maxTime) {
+            const sx = (activeModalStation.sArrival / maxTime) * w;
+            mCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
+            mCtx.setLineDash([4, 4]);
+            mCtx.beginPath();
+            mCtx.moveTo(sx, 0);
+            mCtx.lineTo(sx, h);
+            mCtx.stroke();
+            mCtx.setLineDash([]);
+            mCtx.fillStyle = '#ff79c6';
+            mCtx.fillText(`S-Wave: ${(activeModalStation.sArrival / 10).toFixed(1)} min`, sx + 5, 40);
+        }
+
+        const currentX = (animationTime / maxTime) * w;
+        mCtx.strokeStyle = '#ffffff';
+        mCtx.lineWidth = 2;
+        mCtx.beginPath();
+        mCtx.moveTo(currentX, 0);
+        mCtx.lineTo(currentX, h);
+        mCtx.stroke();
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawEarth();
+        drawShadowZones();
+        drawEpicenter(); 
+        drawStations();
+        drawWaves();
+        updateLiveStats();
+        drawSeismographs();
+
+        if (activeModalStation && document.getElementById('seismoModal').classList.contains('show')) {
+            drawModalSeismograph();
+        }
+
+        if (isAnimating) {
+            animationTime += 1;
+            timeSlider.value = animationTime;
+            if (animationTime >= parseInt(timeSlider.max)) isAnimating = false;
+            animationId = requestAnimationFrame(render);
+        }
+    }
+
+    canvas.addEventListener('click', (e) => {
+        if (justDroppedStation) {
+            justDroppedStation = false;
+            return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const dx = e.clientX - rect.left - cx;
+        const dy = e.clientY - rect.top - cy;
+        const distance = Math.hypot(dx, dy);
+
+        let clickedShadow = false;
+
+        if (shadowToggle.checked && epicenterAngle !== null && distance <= maxRadius) {
+            const clickAngle = Math.atan2(dy, dx);
+            let delta = Math.abs(epicenterAngle - clickAngle);
+            delta = Math.min(delta, 2 * Math.PI - delta);
+
+            if (delta > 2.02 && delta <= 2.48) {
+                document.getElementById('layer-name').innerText = "P & S Wave Shadow Zone";
+                document.getElementById('layer-name').style.color = "#bd93f9"; 
+                document.getElementById('layer-radius').innerText = "116° to 142° from Epicenter";
+                document.getElementById('layer-state').innerText = "Blocked & Refracted";
+                document.getElementById('layer-temp').innerText = "--";
+                document.getElementById('layer-density').innerText = "--";
+                document.getElementById('layer-prange').innerText = "Refracted away by Core";
+                document.getElementById('layer-srange').innerText = "Blocked by Liquid Core";
+                clickedShadow = true;
+            } else if (delta > 2.48) {
+                document.getElementById('layer-name').innerText = "S-Wave Shadow Zone";
+                document.getElementById('layer-name').style.color = "#ff79c6";
+                document.getElementById('layer-radius').innerText = "> 142° from Epicenter";
+                document.getElementById('layer-state').innerText = "S-Waves Blocked";
+                document.getElementById('layer-temp').innerText = "--";
+                document.getElementById('layer-density').innerText = "--";
+                document.getElementById('layer-prange').innerText = "Visible (Refracted through core)";
+                document.getElementById('layer-srange').innerText = "Blocked by Liquid Core";
+                clickedShadow = true;
+            }
+        }
+
+        if (!clickedShadow) {
+            selectedLayer = null;
+            for (let i = 0; i < layers.length; i++) {
+                if (distance <= layers[i].radius) {
+                    selectedLayer = layers[i];
+                    break;
+                }
+            }
+
+            if (selectedLayer) {
+                document.getElementById('layer-name').innerText = selectedLayer.name;
+                document.getElementById('layer-name').style.color = selectedLayer.color;
+                document.getElementById('layer-radius').innerText = selectedLayer.id === 'crust' ? '6,371 km (Surface)' : `Radius to ~${Math.round((selectedLayer.radius/maxRadius)*6371)} km`;
+                document.getElementById('layer-state').innerText = selectedLayer.state;
+                document.getElementById('layer-temp').innerText = selectedLayer.temp;
+                document.getElementById('layer-density').innerText = selectedLayer.density;
+                document.getElementById('layer-prange').innerText = `${selectedLayer.pVelRange[0]} - ${selectedLayer.pVelRange[1]} km/s`;
+                document.getElementById('layer-srange').innerText = selectedLayer.id === 'outer_core' ? '0 km/s' : `${selectedLayer.sVelRange[0]} - ${selectedLayer.sVelRange[1]} km/s`;
+            }
+        }
+        
+        render();
+    });
+
+    triggerBtn.addEventListener('click', () => {
+        stations.forEach(st => generateSingleSeismogram(st));
+        isAnimating = true;
+        animationTime = 0;
+        timeSlider.disabled = false;
+        triggerBtn.disabled = true; 
+        render();
+    });
+
+    resetBtn.addEventListener('click', () => {
+        isAnimating = false;
+        animationTime = 0;
+        timeSlider.value = 0;
+        if (epicenterAngle !== null) {
+            triggerBtn.disabled = false;
+        }
+        render();
+    });
+
+    timeSlider.addEventListener('input', (e) => {
+        isAnimating = false; 
+        animationTime = parseInt(e.target.value);
+        render();
+    });
+
+    degreeToggle.addEventListener('change', render);
+    shadowToggle.addEventListener('change', render);
+
+    clearStationsBtn.addEventListener('click', () => {
+        stations = [];
+        document.getElementById('seismographs-wrapper').innerHTML = '';
+        render();
+    });
+
+    render();
+</script>
+
+</body>
+</html>
