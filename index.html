@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Earthquake Simulator</title>
+    <title>Interactive Earthquake Simulator & Lab Journal</title>
     <style>
         :root {
             --bg-color: #1e1e24;
@@ -13,6 +13,9 @@
             --p-wave: #8be9fd;
             --s-wave: #ff79c6;
             --highlight: #ffffff;
+            --success: #50fa7b;
+            --danger: #ff5555;
+            --border-color: #44475a;
         }
 
         body {
@@ -21,8 +24,97 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             display: flex;
+            flex-direction: column;
             height: 100vh;
             overflow: hidden;
+        }
+
+        /* Top Navigation Bar */
+        #top-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #18181f;
+            padding: 10px 25px;
+            border-bottom: 1px solid #383847;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+
+        .navbar-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Segmented Mode Toggle Pill */
+        .segmented-control {
+            display: flex;
+            background: #2b2b36;
+            padding: 4px;
+            border-radius: 30px;
+            border: 1px solid #44475a;
+        }
+
+        .toggle-tab {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            padding: 6px 18px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .toggle-tab.active {
+            background: var(--accent);
+            color: #1e1e24;
+            box-shadow: 0 2px 8px rgba(255, 184, 108, 0.4);
+        }
+
+        .journal-trigger-btn {
+            background: linear-gradient(135deg, #bd93f9, #ff79c6);
+            color: #1e1e24;
+            border: 1px solid transparent;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(189, 147, 249, 0.3);
+        }
+        .journal-trigger-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(189, 147, 249, 0.5);
+        }
+
+        @keyframes journalGlowStrobe {
+            0% {
+                box-shadow: 0 0 8px #bd93f9, 0 0 12px #bd93f9;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 22px #ff79c6, 0 0 35px #ff79c6;
+                transform: scale(1.08);
+            }
+            100% {
+                box-shadow: 0 0 8px #bd93f9, 0 0 12px #bd93f9;
+                transform: scale(1);
+            }
+        }
+
+        .journal-trigger-btn.strobe {
+            animation: journalGlowStrobe 1.2s infinite ease-in-out;
+            border: 1px solid #ffffff;
         }
 
         #app-container {
@@ -30,8 +122,11 @@
             width: 100%;
             max-width: 1500px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 15px 20px;
             gap: 20px;
+            flex: 1;
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         .side-panel {
@@ -43,9 +138,7 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
-        .side-panel::-webkit-scrollbar {
-            display: none;
-        }
+        .side-panel::-webkit-scrollbar { display: none; }
 
         #canvas-container {
             flex: 1;
@@ -58,13 +151,11 @@
             position: relative;
         }
 
-        canvas {
-            cursor: pointer;
-        }
+        canvas { cursor: pointer; }
 
         .card {
             background-color: var(--panel-bg);
-            padding: 20px;
+            padding: 18px;
             border-radius: 12px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.3);
             border-left: 4px solid var(--accent);
@@ -89,17 +180,17 @@
         }
         .min-btn:hover { color: var(--highlight); }
 
-        h1 { margin: 0; font-size: 1.4rem; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 10px; width: 100%;}
-        h2 { margin: 0; font-size: 1.1rem; }
+        h1 { margin: 0; font-size: 1.3rem; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 8px; width: 100%;}
+        h2 { margin: 0; font-size: 1.05rem; }
 
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.88rem; }
         .stat-label { font-weight: bold; color: #aaa; }
 
         /* Toolbox & Drag Drop */
         .toolbox { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .tool-item {
             background: #383847; padding: 10px; border-radius: 8px; cursor: grab;
-            display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 8px; font-size: 0.88rem;
             user-select: none; border: 2px solid transparent; transition: border 0.2s;
         }
         .tool-item:active { cursor: grabbing; }
@@ -107,12 +198,11 @@
         .tool-icon { width: 20px; height: 20px; border-radius: 50%; }
 
         .controls-group { display: flex; flex-direction: column; gap: 12px; margin-top: 15px;}
-        
         .btn-group { display: flex; gap: 10px; }
 
         button.action-btn {
-            background-color: #ff5555; color: white; border: none; padding: 10px; border-radius: 6px;
-            font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
+            background-color: var(--danger); color: white; border: none; padding: 10px; border-radius: 6px;
+            font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: background 0.2s;
         }
         button.action-btn:hover:not(:disabled) { background-color: #ff7777; }
         button.action-btn:disabled { background-color: #555; color: #888; cursor: not-allowed; }
@@ -120,7 +210,7 @@
         button#resetBtn { background-color: #8be9fd; color: #1e1e24; }
         button#resetBtn:hover:not(:disabled) { background-color: #a4ffff; }
         
-        .btn-secondary { background-color: #6272a4; }
+        .btn-secondary { background-color: #6272a4; color: white; }
         .btn-secondary:hover:not(:disabled) { background-color: #7a8cb8; }
 
         input[type=range] { width: 100%; cursor: pointer; }
@@ -142,35 +232,171 @@
         .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #aaa; cursor: pointer; }
         .toggle-row input { cursor: pointer; }
 
-        /* Modal Styles */
+        /* Modals & Journal Sections */
         .modal {
             display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center;
+            backdrop-filter: blur(3px);
         }
         .modal.show { display: flex; }
         .modal-content {
             background-color: var(--panel-bg); padding: 25px; border-radius: 12px;
-            width: 90%; max-width: 850px; box-shadow: 0 12px 24px rgba(0,0,0,0.5);
-            border-left: 4px solid var(--highlight); position: relative;
+            width: 90%; max-width: 850px; box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+            border-left: 5px solid var(--highlight); position: relative;
+            max-height: 85vh; overflow-y: auto;
         }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+
+        #journalModal .modal-content {
+            max-width: 750px;
+            border-left-color: #bd93f9;
+        }
+
+        .journal-section {
+            background: #1e1e24;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .journal-section h3 {
+            margin-top: 0;
+            color: #bd93f9;
+            font-size: 1.05rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .hint-box {
+            background: #2b2b36;
+            padding: 10px 12px;
+            border-left: 4px solid var(--accent);
+            font-style: italic;
+            margin: 10px 0;
+            font-size: 0.88rem;
+            color: #f8f8f2;
+            border-radius: 0 4px 4px 0;
+        }
+
+        textarea {
+            width: 100%;
+            height: 75px;
+            background: #121216;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        textarea:disabled {
+            background: #18181d;
+            border-color: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        input[type="number"] {
+            width: 90px;
+            padding: 6px;
+            background: #121216;
+            color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .feedback {
+            font-size: 0.88rem;
+            margin-top: 6px;
+            font-weight: bold;
+        }
+
+        .feedback.error { color: var(--danger); }
+        .feedback.success { color: var(--success); }
+
+        .layer-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 0.78rem;
+            border-radius: 4px;
+            background: #44475a;
+            color: #aaa;
+            margin-right: 5px;
+            font-weight: bold;
+        }
+
+        .layer-tag.visited {
+            background: var(--success);
+            color: #1e1e24;
+        }
+
+        .journal-status-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.8rem; color: #aaa; margin-top: 8px; padding: 0 4px;
+        }
     </style>
 </head>
 <body>
 
+<div id="top-navbar">
+    <div class="navbar-title">
+        <span>🌎 Interactive Earth Simulator</span>
+    </div>
+
+    <div class="segmented-control">
+        <button id="freePlayBtn" class="toggle-tab active">Free Play Mode</button>
+        <button id="labModeBtn" class="toggle-tab">Interactive Lab Mode</button>
+    </div>
+
+    <button id="openJournalBtn" class="journal-trigger-btn">
+        <span>📓</span> Digital Journal
+    </button>
+</div>
+
 <div id="app-container">
     <div class="side-panel">
+        <div class="card" id="labGuideCard" style="display: none; border-left-color: #ffb86c;">
+            <div class="card-header">
+                <h2>Interactive Lab Guide</h2>
+            </div>
+            <div class="card-content">
+                <p id="labStepTitle" style="font-size: 0.85rem; font-weight: bold; color: #ffb86c; margin-top: 0;">Step 1</p>
+                <p id="labPromptText" style="font-size: 0.9rem; margin-bottom: 15px; line-height: 1.4;">Drag the Epicenter tool onto the surface of the Earth to initiate seismic activity.</p>
+                
+                <div id="labFeedback" style="font-size: 0.85rem; font-weight: bold; margin-bottom: 12px; padding: 8px; border-radius: 6px; display: none;"></div>
+                
+                <div style="display: flex; gap: 8px;">
+                    <button id="checkWorkBtn" class="action-btn btn-secondary" style="flex: 1;">Check My Work</button>
+                    <button id="nextLabBtn" class="action-btn" style="background-color: var(--success); color: #1e1e24; flex: 1; display: none;">Next Step ➔</button>
+                </div>
+            </div>
+        </div>
+
         <div class="card" style="border-left-color: #ff5555;">
             <div class="card-header">
-                <h2>Interactive Lab Toolbox</h2>
+                <h2>Seismic Toolbox</h2>
                 <button class="min-btn" title="Minimize box">−</button>
             </div>
             <div class="card-content">
-                <p style="font-size: 0.85rem; color: #bd93f9; margin-top: 0;">Drag items onto the Earth. Drag stations directly on the globe to move them!</p>
+                <p style="font-size: 0.82rem; color: #bd93f9; margin-top: 0;">Drag items onto Earth. Drag stations directly on globe to move!</p>
                 
                 <div class="toolbox">
                     <div class="tool-item" draggable="true" id="tool-epicenter" data-type="epicenter">
-                        <div class="tool-icon" style="background: repeating-linear-gradient(45deg, #ff5555, #ff5555 4px, #cc0000 4px, #cc0000 8px); border: 2px solid white; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; color: white;">!</div> Epicenter
+                        <div class="tool-icon" style="background: repeating-linear-gradient(45deg, #ff5555, #ff5555 4px, #cc0000 4px, #cc0000 8px); border: 2px solid white; display: flex; justify-content: center; align-items: center; font-size: 13px; font-weight: bold; color: white;">!</div> Epicenter
                     </div>
                     <div class="tool-item" draggable="true" id="tool-station-0" data-type="station" data-id="0">
                         <div class="tool-icon" style="background: #50fa7b;"></div> Station 1
@@ -197,8 +423,8 @@
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 5px;">
-                        <label for="timeSlider" style="font-size: 0.85rem; color: #aaa;">Slow-Mo Time Scrubber</label>
-                        <input type="range" id="timeSlider" min="0" max="650" value="0" disabled>
+                        <label for="timeSlider" style="font-size: 0.82rem; color: #aaa;">Slow-Mo Time Scrubber</label>
+                        <input type="range" id="timeSlider" min="0" max="350" value="0" disabled>
                     </div>
                 </div>
             </div>
@@ -210,14 +436,18 @@
                 <button class="min-btn" title="Minimize box">−</button>
             </div>
             <div class="card-content" style="height: 100%;">
-                <button class="action-btn btn-secondary" id="clearStationsBtn" style="width: 100%; font-size: 0.85rem; padding: 8px;">Clear Stations</button>
-                <div id="seismographs-wrapper" class="seismograph-container" style="margin-top: 15px;">
+                <button class="action-btn btn-secondary" id="clearStationsBtn" style="width: 100%; font-size: 0.82rem; padding: 6px;">Clear Stations</button>
+                <div id="seismographs-wrapper" class="seismograph-container" style="margin-top: 12px;">
                 </div>
             </div>
         </div>
     </div>
 
     <div id="canvas-container">
+        <div id="floating-legend" style="position: absolute; top: 20px; left: 20px; background: rgba(43, 43, 54, 0.85); padding: 12px; border-radius: 8px; border: 1px solid #6272a4; box-shadow: 0 4px 10px rgba(0,0,0,0.5); pointer-events: none; z-index: 10;">
+            <div class="legend-item" style="margin-bottom: 8px;"><div class="color-box" style="background-color: var(--p-wave);"></div><span style="font-size: 0.9rem; font-weight: bold;">Primary (P)</span></div>
+            <div class="legend-item" style="margin-bottom: 0;"><div class="color-box" style="background-color: var(--s-wave);"></div><span style="font-size: 0.9rem; font-weight: bold;">Secondary (S)</span></div>
+        </div>
         <canvas id="simCanvas" width="650" height="650"></canvas>
     </div>
 
@@ -228,8 +458,8 @@
                 <button class="min-btn" title="Minimize box">−</button>
             </div>
             <div class="card-content">
-                <p style="font-size: 0.85rem; color: #bd93f9; margin-top: 0;">Click any layer on the Earth to view stats.</p>
-                <h2 id="layer-name" style="margin-top: 15px;">Select a Layer</h2>
+                <p style="font-size: 0.82rem; color: #bd93f9; margin-top: 0;">Click any layer on Earth to view stats.</p>
+                <h2 id="layer-name" style="margin-top: 12px;">Select a Layer</h2>
                 <div class="stat-row"><span class="stat-label">Thickness/Radius:</span><span id="layer-radius">--</span></div>
                 <div class="stat-row"><span class="stat-label">State:</span><span id="layer-state">--</span></div>
                 <div class="stat-row"><span class="stat-label">Temperature:</span><span id="layer-temp">--</span></div>
@@ -245,7 +475,7 @@
                 <button class="min-btn" title="Minimize box">−</button>
             </div>
             <div class="card-content">
-                <p style="font-size: 0.8rem; color: #aaa; margin: 0 0 10px 0;">Calculates velocity of the wave traveling straight through center.</p>
+                <p style="font-size: 0.8rem; color: #aaa; margin: 0 0 10px 0;">Calculates wave velocity through center.</p>
                 <div class="stat-row"><span class="stat-label">Path Position:</span><span id="live-leg">At Surface</span></div>
                 <div class="stat-row"><span class="stat-label">Current Depth:</span><span id="live-depth">0 km</span></div>
                 <div class="stat-row"><span class="stat-label">P-Wave Velocity:</span><span id="live-pvel">0.0 km/s</span></div>
@@ -253,28 +483,120 @@
             </div>
         </div>
 
-        <div class="card" style="border-left-color: #f1fa8c; margin-top: auto;">
+        <div class="card" style="border-left-color: #bd93f9; margin-top: auto;">
             <div class="card-header">
-                <h2>Legend</h2>
+                <h2>Material Propagation</h2>
                 <button class="min-btn" title="Minimize box">−</button>
             </div>
-            <div class="card-content">
-                <div class="legend-item"><div class="color-box" style="background-color: var(--p-wave);"></div><span>Primary (P) - Pass through all</span></div>
-                <div class="legend-item"><div class="color-box" style="background-color: var(--s-wave);"></div><span>Secondary (S) - Stop at liquid</span></div>
+            <div class="card-content" id="prop-content" style="cursor: pointer;">
+                <p style="font-size: 0.8rem; color: #aaa; margin: 0 0 10px 0;">Select layer to view motion. <span style="color: #50fa7b; font-weight: bold;">▶ Click to Play</span></p>
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 0.82rem; margin-bottom: 3px; font-weight: bold; color: var(--p-wave);">P-Wave (Compressional)</div>
+                    <canvas id="pAnimCanvas" width="280" height="60" style="background: #1e1e24; border-radius: 4px; width: 100%; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);"></canvas>
+                </div>
+                <div>
+                    <div style="font-size: 0.82rem; margin-bottom: 3px; font-weight: bold; color: var(--s-wave);">S-Wave (Secondary)</div>
+                    <canvas id="sAnimCanvas" width="280" height="60" style="background: #1e1e24; border-radius: 4px; width: 100%; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);"></canvas>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal for Detailed Seismograph -->
+<!-- Modal for Detailed Seismograph Readout -->
 <div id="seismoModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h2 id="modalTitle">Station Readout</h2>
-            <button id="closeModalBtn" class="min-btn" style="font-size: 2rem;">&times;</button>
+            <button class="close-modal-btn min-btn" data-target="seismoModal" style="font-size: 2rem;">&times;</button>
         </div>
-        <p style="font-size: 0.9rem; color: #aaa; margin-top: -10px; margin-bottom: 15px;">High-resolution timeline. Use the time grid to calculate the S-P interval.</p>
+        <p style="font-size: 0.88rem; color: #aaa; margin-top: -10px; margin-bottom: 15px;">High-resolution timeline. Use the time grid to calculate the S-P interval.</p>
         <canvas id="modalCanvas" width="800" height="200" style="width: 100%; background: #1e1e24; border-radius: 6px;"></canvas>
+    </div>
+</div>
+
+<!-- Modal Pop-Up for Digital Journal -->
+<div id="journalModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📓 Digital Lab Journal</h2>
+            <button class="close-modal-btn min-btn" data-target="journalModal" style="font-size: 2rem;">&times;</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #bd93f9; margin-top: -10px; margin-bottom: 15px;">Log your lab observations, calculations, and explanations for each section below.</p>
+
+        <!-- Section 2: Wave Motion Observation -->
+        <div class="journal-section" id="section-2">
+            <h3>Section 2: Wave Motion Observation</h3>
+            <div class="hint-box">
+                Look in the Material Propagation window and click play, then describe how each wave type moves the particles. Make sure to discuss both P and S waves in your response.
+            </div>
+            <textarea id="journal-sec2" placeholder="Describe your observations of wave particle movement for both P and S waves..."></textarea>
+        </div>
+
+        <!-- Section 6: Station Intervals & S-Wave Shadow Zone -->
+        <div class="journal-section" id="section-6">
+            <h3>Section 6: Station Intervals & S-Wave Shadow Zone</h3>
+            
+            <div class="input-group">
+                <label for="stn1-interval">Station 1 S-P Interval (min):</label>
+                <input type="number" id="stn1-interval" step="0.1" placeholder="0.0">
+            </div>
+
+            <div class="input-group">
+                <label>Station 2 (Shadow Zone):</label>
+                <input type="text" value="No S-Waves Detected" disabled style="background:#18181d; color:#888; border:1px solid #333; padding:5px; border-radius:4px; font-size:0.85rem;">
+            </div>
+
+            <div class="input-group">
+                <label for="stn3-interval">Station 3 (110°) S-P Interval (min):</label>
+                <input type="number" id="stn3-interval" step="0.1" placeholder="0.0">
+            </div>
+            
+            <button class="action-btn btn-secondary" onclick="verifyStep6Intervals()" style="margin-top: 5px; padding: 6px 12px; font-size: 0.85rem;">Verify Intervals</button>
+            <div id="step6-interval-feedback" class="feedback"></div>
+
+            <p style="margin-top: 15px; font-size: 0.9rem; font-weight: bold; color: var(--accent);">Section 6 Responses:</p>
+            
+            <label style="font-size: 0.85rem; color: #aaa;">1. Compare Station 1 and Station 3 intervals. Explain why the arrival interval changes based on where the stations are located.</label>
+            <textarea id="journal-sec6-compare" placeholder="Compare Station 1 and Station 3 intervals and explain why they change based on location..."></textarea>
+
+            <label style="font-size: 0.85rem; color: #aaa; margin-top: 10px; display:block;">2. Explain why Station 2 fails to record any S-waves:</label>
+            <textarea id="journal-sec6-shadow" placeholder="Explain the S-wave shadow zone phenomenon..."></textarea>
+        </div>
+
+        <!-- Section 7: Layer-by-Layer Propagation -->
+        <div class="journal-section" id="section-7">
+            <h3>Section 7: Layer-by-Layer Propagation</h3>
+            <div style="margin-bottom: 10px;">
+                <span style="font-size: 0.85rem; color: #aaa;">Required Layer Inspections: </span>
+                <span id="tag-crust" class="layer-tag">Crust</span>
+                <span id="tag-mantle" class="layer-tag">Mantle</span>
+                <span id="tag-outer_core" class="layer-tag">Outer Core</span>
+                <span id="tag-inner_core" class="layer-tag">Inner Core</span>
+            </div>
+            <p id="step7-lock-msg" style="color: var(--danger); font-size: 0.85rem; margin-top: 5px; margin-bottom: 10px;">
+                🔒 You must click/inspect all four layers in the simulator before unlocking this response box.
+            </p>
+            <textarea id="journal-sec7" disabled placeholder="Observe both the wave arcs on the globe and the material propagation animation. Explain how wave behavior changes in each layer (Crust, Mantle, Outer Core, Inner Core)..."></textarea>
+        </div>
+
+        <!-- Section 8: Final Synthesis & Wave Physics -->
+        <div class="journal-section" id="section-8">
+            <h3>Section 8: Final Synthesis & Wave Physics</h3>
+            <p style="font-size: 0.85rem; color: #aaa; margin-top: 0;">Explain how wave speed and path changes reveal Earth's internal structure:</p>
+            <textarea id="journal-sec8" placeholder="Provide your explanation..."></textarea>
+            <button class="action-btn" onclick="submitStep8()" style="margin-top: 10px; background-color: var(--success); color: #1e1e24;">Validate & Submit Section 8</button>
+            <div id="step8-feedback" class="feedback"></div>
+        </div>
+
+        <div class="journal-status-bar">
+            <span id="journalSaveStatus" style="color: var(--success);">Saved locally ✓</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button id="saveJournalBtn" class="action-btn" style="background-color: var(--success); color: #1e1e24; flex: 1;">Save All Notes</button>
+            <button id="clearJournalBtn" class="action-btn" style="background-color: var(--danger); color: #ffffff; flex: 1;">Clear Journal</button>
+        </div>
     </div>
 </div>
 
@@ -291,13 +613,13 @@
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     const maxRadius = 270; 
-    const maxTime = 650; // Total ticks, mapped to 65 minutes
+    const maxTime = 350;
 
     const layers = [
-        { id: 'inner_core', name: 'Inner Core', radius: maxRadius * 0.19, color: '#ff5555', state: 'Solid', temp: '~5,400 °C', density: '12.8 - 13.1 g/cm³', pVelRange: [11.2, 11.2], sVelRange: [3.6, 3.6] },
+        { id: 'inner_core', name: 'Inner Core', radius: maxRadius * 0.19, color: '#ff5555', state: 'Solid', temp: '~5,400 °C', density: '12.8 - 13.1 g/cm³', pVelRange: [11.2, 11.2], sVelRange: [0, 0] },
         { id: 'outer_core', name: 'Outer Core', radius: maxRadius * 0.53, color: '#ffb86c', state: 'Liquid', temp: '4,000 - 5,000 °C', density: '9.9 - 12.2 g/cm³', pVelRange: [8.0, 10.3], sVelRange: [0, 0] },
         { id: 'mantle', name: 'Mantle', radius: maxRadius * 0.98, color: '#f1fa8c', state: 'Solid / Plastic', temp: '1,000 - 3,700 °C', density: '3.4 - 5.6 g/cm³', pVelRange: [8.0, 13.7], sVelRange: [4.5, 7.3] },
-        { id: 'crust', name: 'Crust', radius: maxRadius, color: '#7a8cb8', state: 'Solid', temp: '20 - 400 °C', density: '2.2 - 2.9 g/cm³', pVelRange: [5.0, 7.0], sVelRange: [3.0, 4.0] }
+        { id: 'crust', name: 'Crust', radius: maxRadius, color: '#A0522D', state: 'Solid', temp: '20 - 400 °C', density: '2.2 - 2.9 g/cm³', pVelRange: [5.0, 7.0], sVelRange: [3.0, 4.0] }
     ];
 
     const stationColors = ['#50fa7b', '#f1fa8c', '#8be9fd'];
@@ -313,12 +635,37 @@
     let justDroppedStation = false;
     let activeModalStation = null;
     
-    const pSpeed = 1.8; 
-    const sSpeed = 1.0;
+    const pSpeed = 2.5; 
+    const sSpeed = 1.5;
+
+    // Track inspected layers for Step 7 unlocking
+    const inspectedLayers = {
+        crust: false,
+        mantle: false,
+        outer_core: false,
+        inner_core: false
+    };
+
+    // Helper function to validate real words and sentence structure
+    function isRealText(text, minWords = 5) {
+        if (!text || typeof text !== 'string') return false;
+        const trimmed = text.trim();
+        const words = trimmed.split(/\s+/).filter(w => w.length > 0);
+        if (words.length < minWords) return false;
+        
+        let validWordCount = 0;
+        for (let word of words) {
+            const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+            if (cleanWord.length >= 1 && /[aeiouyAEIOUY]/.test(cleanWord)) {
+                validWordCount++;
+            }
+        }
+        return validWordCount >= Math.ceil(minWords * 0.65);
+    }
 
     // --- MINIMIZE BUTTONS LOGIC ---
     document.querySelectorAll('.min-btn').forEach(btn => {
-        if (btn.id !== 'closeModalBtn') {
+        if (!btn.classList.contains('close-modal-btn')) {
             btn.addEventListener('click', (e) => {
                 const content = e.target.closest('.card').querySelector('.card-content');
                 if (content.style.display === 'none') {
@@ -332,7 +679,16 @@
         }
     });
 
-    // --- MODAL LOGIC ---
+    // --- MODAL CLOSE BUTTONS ---
+    document.querySelectorAll('.close-modal-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            document.getElementById(targetId).classList.remove('show');
+            if (targetId === 'seismoModal') activeModalStation = null;
+        });
+    });
+
+    // --- SEISMOGRAPH MODAL DETAILED READOUT ---
     document.getElementById('seismographs-wrapper').addEventListener('click', (e) => {
         if (e.target.classList.contains('seismo-canvas')) {
             const stId = parseInt(e.target.id.split('-')[1]);
@@ -347,16 +703,10 @@
         }
     });
 
-    document.getElementById('closeModalBtn').addEventListener('click', () => {
-        document.getElementById('seismoModal').classList.remove('show');
-        activeModalStation = null;
-    });
-
     window.addEventListener('click', (e) => {
-        const modal = document.getElementById('seismoModal');
-        if (e.target === modal) {
-            modal.classList.remove('show');
-            activeModalStation = null;
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('show');
+            if (e.target.id === 'seismoModal') activeModalStation = null;
         }
     });
 
@@ -521,16 +871,29 @@
             ctx.beginPath();
             ctx.arc(cx, cy, layers[i].radius, 0, Math.PI * 2);
             ctx.fillStyle = layers[i].color;
-            ctx.fill();
             
             if (selectedLayer && selectedLayer.id === layers[i].id) {
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                
                 ctx.lineWidth = 4;
-                ctx.strokeStyle = 'var(--highlight)';
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0; 
             } else {
+                if (selectedLayer) {
+                    ctx.globalAlpha = 0.5; 
+                }
+                ctx.fill();
+                
                 ctx.lineWidth = 1.5;
                 ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                ctx.stroke();
+                
+                ctx.globalAlpha = 1.0; 
             }
-            ctx.stroke();
         }
         drawLayerLabels();
         drawDegreeMarkers();
@@ -668,8 +1031,8 @@
 
         // --- P WAVES ---
         const vMantle = pSpeed;
-        const vOuter = pSpeed * 0.65; // Slows in liquid outer core
-        const vInner = pSpeed * 1.35; // Speeds up in dense solid inner core
+        const vOuter = pSpeed * 0.65;
+        const vInner = pSpeed * 1.35;
 
         const t1 = (R - rCore) / vMantle;
         const t2 = (rCore - rInner) / vOuter;
@@ -677,14 +1040,13 @@
         const t4 = (rCore - rInner) / vOuter;
         const tOuterFull = (2 * rCore) / vOuter;
         
-        const centerCone = 0.35; // Cone angle for fast inner core wave
+        const centerCone = 0.35;
 
-        // 1. UNREFRACTED MANTLE P-WAVE (Direct)
+        // 1. UNBENT MANTLE P-WAVE
         ctx.save();
         ctx.beginPath();
-        // Allow drawing only outside the outer core AND within the non-shadow zone (< 2.02 rad)
-        ctx.arc(0, 0, rCore, -Math.PI/2 - 2.02, -Math.PI/2 + 2.02);
-        ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + 2.02, -Math.PI/2 - 2.02, true);
+        ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 - 2.02, -Math.PI/2 + 2.02, false);
+        ctx.arc(0, 0, rCore, -Math.PI/2 + 2.02, -Math.PI/2 - 2.02, true);
         ctx.clip(); 
 
         ctx.strokeStyle = 'rgba(139, 233, 253, 0.8)'; 
@@ -695,22 +1057,22 @@
         ctx.restore(); 
 
         if (animationTime > t1) {
-            
-            // --- 2. SLOW OUTER CORE FLANKS ---
             let rSlowInside = (R - rCore) + (animationTime - t1) * vOuter;
             let rSlowOutside = (R + rCore) + (animationTime - (t1 + tOuterFull)) * vMantle;
 
             // 2A. Flanks INSIDE Outer Core
             ctx.save();
             ctx.beginPath();
-            ctx.arc(0, 0, rCore, 0, Math.PI * 2);      // Inside outer core
-            ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); // Exclude inner core
+            ctx.arc(0, 0, rCore, 0, Math.PI * 2);      
+            ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); 
             ctx.clip();
             
-            // Exclude the center cone so the inner core fast wave has room
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, Math.PI/2 - centerCone, false);
+            ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + centerCone, Math.PI/2 - centerCone, false); 
+            ctx.lineTo(0,0);
+            ctx.moveTo(0,0);
+            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, 3*Math.PI/2 - centerCone, false); 
             ctx.lineTo(0,0);
             ctx.clip();
 
@@ -721,85 +1083,84 @@
             ctx.stroke();
             ctx.restore();
 
-            // 2B. Flanks EXITING into Bottom Mantle
-            if (animationTime > t1 + tOuterFull) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(-R*2, -R*2, R*4, R*4);
-                ctx.arc(0, 0, rCore, 0, Math.PI * 2, true); // Outside outer core
-                ctx.clip();
+           // 2B. Flanks EXITING into Bottom Mantle
+            let rBottomMantleFlank = animationTime > t1 + tOuterFull ? rSlowOutside : rSlowInside;
 
-                // Only past the 2.48 rad shadow zone
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + 2.48, Math.PI*1.5 - 2.48, false);
-                ctx.lineTo(0,0);
-                ctx.clip();
-                
-                // Exclude center cone
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, Math.PI/2 - centerCone, false);
-                ctx.lineTo(0,0);
-                ctx.clip();
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(-R*2, -R*2, R*4, R*4);
+            ctx.arc(0, 0, rCore, 0, Math.PI * 2, true); 
+            ctx.clip();
 
-                ctx.strokeStyle = 'rgba(139, 233, 253, 0.5)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(0, -R, rSlowOutside, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
-            }
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + 2.48, Math.PI*1.5 - 2.48, false);
+            ctx.lineTo(0,0);
+            ctx.clip();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 + centerCone, Math.PI/2 - centerCone, false);
+            ctx.lineTo(0,0);
+            ctx.moveTo(0,0);
+            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 + centerCone, 3*Math.PI/2 - centerCone, false);
+            ctx.lineTo(0,0);
+            ctx.clip();
 
-            // --- 3. CENTER BULGE (Top Outer, Inner, and Bottom Outer Core) ---
+            ctx.strokeStyle = 'rgba(139, 233, 253, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, -R, rBottomMantleFlank, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // --- 3. CENTER BULGE ---
             let rCenter;
             let phase = 0; 
             
             if (animationTime <= t1 + t2) {
-                // Phase 0: Descending through top Outer Core
                 rCenter = (R - rCore) + (animationTime - t1) * vOuter;
                 phase = 0;
             } else if (animationTime <= t1 + t2 + t3) {
-                // Phase 1: Inside Inner Core (Fast)
                 rCenter = (R - rInner) + (animationTime - (t1 + t2)) * vInner;
                 phase = 1;
             } else if (animationTime <= t1 + t2 + t3 + t4) {
-                // Phase 2: Ascending through bottom Outer Core
                 rCenter = (R + rInner) + (animationTime - (t1 + t2 + t3)) * vOuter;
                 phase = 2;
             } else {
-                // Phase 3: Ascending through bottom Mantle
                 rCenter = (R + rCore) + (animationTime - (t1 + t2 + t3 + t4)) * vMantle;
                 phase = 3;
             }
 
             ctx.save();
             
-            // Restrict strictly to the center cone
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.arc(0, 0, maxRadius * 2, Math.PI/2 - centerCone, Math.PI/2 + centerCone, false);
-            ctx.lineTo(0,0);
-            ctx.clip();
-
-            // Restrict based on phase
             ctx.beginPath();
             if (phase === 0) {
-                ctx.arc(0, 0, rCore, 0, Math.PI * 2);
-                ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); 
-                ctx.rect(-R*2, -R*2, R*4, R*2); // Top half only
+                ctx.arc(0, 0, rCore, Math.PI, Math.PI * 2); 
+                ctx.arc(0, 0, rInner, Math.PI * 2, Math.PI, true); 
+                ctx.closePath();
             } else if (phase === 1) {
-                ctx.arc(0, 0, rInner, 0, Math.PI * 2); // Inside Inner Core
+                ctx.arc(0, 0, rInner, 0, Math.PI * 2); 
             } else if (phase === 2) {
-                ctx.arc(0, 0, rCore, 0, Math.PI * 2);
-                ctx.arc(0, 0, rInner, 0, Math.PI * 2, true); 
-                ctx.rect(-R*2, 0, R*4, R*2); // Bottom half only
+                ctx.arc(0, 0, rCore, 0, Math.PI); 
+                ctx.arc(0, 0, rInner, Math.PI, 0, true); 
+                ctx.closePath();
             } else {
-                ctx.rect(-R*2, -R*2, R*4, R*4);
-                ctx.arc(0, 0, rCore, 0, Math.PI * 2, true); // Mantle
-                ctx.rect(-R*2, 0, R*4, R*2); // Bottom half only
+                ctx.arc(0, 0, maxRadius * 2, 0, Math.PI); 
+                ctx.arc(0, 0, rCore, Math.PI, 0, true); 
+                ctx.closePath();
             }
             ctx.clip();
+
+            if (phase !== 1) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, maxRadius * 2, Math.PI/2 - centerCone, Math.PI/2 + centerCone, false);
+                ctx.lineTo(0,0);
+                ctx.arc(0, 0, maxRadius * 2, -Math.PI/2 - centerCone, -Math.PI/2 + centerCone, false);
+                ctx.closePath();
+                ctx.clip();
+            }
 
             ctx.strokeStyle = phase === 1 ? 'rgba(139, 233, 253, 1)' : 'rgba(139, 233, 253, 0.8)'; 
             ctx.lineWidth = 3;
@@ -821,7 +1182,32 @@
             return;
         }
 
-        const pDist = animationTime * pSpeed;
+        const R = maxRadius;
+        const rCore = layers[1].radius; 
+        const rInner = layers[0].radius; 
+        
+        const vMantle = pSpeed;
+        const vOuter = pSpeed * 0.65;
+        const vInner = pSpeed * 1.35;
+
+        const t1 = (R - rCore) / vMantle;
+        const t2 = (rCore - rInner) / vOuter;
+        const t3 = (2 * rInner) / vInner;
+        const t4 = (rCore - rInner) / vOuter;
+
+        let pDist = 0;
+        if (animationTime <= t1) {
+            pDist = animationTime * vMantle;
+        } else if (animationTime <= t1 + t2) {
+            pDist = (R - rCore) + (animationTime - t1) * vOuter;
+        } else if (animationTime <= t1 + t2 + t3) {
+            pDist = (R - rInner) + (animationTime - (t1 + t2)) * vInner;
+        } else if (animationTime <= t1 + t2 + t3 + t4) {
+            pDist = (R + rInner) + (animationTime - (t1 + t2 + t3)) * vOuter;
+        } else {
+            pDist = (R + rCore) + (animationTime - (t1 + t2 + t3 + t4)) * vMantle;
+        }
+
         const sDist = animationTime * sSpeed;
 
         const pCenterDist = Math.abs(maxRadius - pDist);
@@ -876,7 +1262,37 @@
         const pShadow = shortestDelta > 2.02 && shortestDelta < 2.48; 
         const sShadow = shortestDelta > 2.02; 
         
-        const pArrival = Math.round(chord / pSpeed);
+        const R = maxRadius;
+        const rCore = layers[1].radius;
+        const rInner = layers[0].radius;
+        
+        const vMantle = pSpeed;
+        const vOuter = pSpeed * 0.65;
+        const vInner = pSpeed * 1.35;
+
+        let pArrivalRaw;
+        
+        if (shortestDelta <= 2.02) {
+            pArrivalRaw = chord / vMantle;
+        } else if (pShadow) {
+            pArrivalRaw = maxTime + 100; 
+        } else {
+            const t1 = (R - rCore) / vMantle;
+            const tOuterFull = (2 * rCore) / vOuter;
+            const t2 = (rCore - rInner) / vOuter;
+            const t3 = (2 * rInner) / vInner;
+            const t4 = (rCore - rInner) / vOuter;
+            
+            const centerCone = 0.35;
+            
+            if (shortestDelta > Math.PI - centerCone) {
+                pArrivalRaw = (chord - R - rCore) / vMantle + (t1 + t2 + t3 + t4);
+            } else {
+                pArrivalRaw = (chord - R - rCore) / vMantle + (t1 + tOuterFull);
+            }
+        }
+        
+        const pArrival = Math.round(pArrivalRaw);
         const sArrival = Math.round(chord / sSpeed);
 
         st.pArrival = pArrival;
@@ -913,60 +1329,80 @@
 
             sCtx.clearRect(0, 0, w, h);
 
-            // Draw time grid
             sCtx.strokeStyle = '#383847';
             sCtx.lineWidth = 1;
-            sCtx.fillStyle = '#666';
-            sCtx.textAlign = 'center';
-            sCtx.font = '9px "Segoe UI", sans-serif';
             for (let i = 0; i <= maxTime; i += 100) {
                 const x = (i / maxTime) * w;
                 sCtx.beginPath();
                 sCtx.moveTo(x, 0);
                 sCtx.lineTo(x, h);
                 sCtx.stroke();
-                if (i > 0) sCtx.fillText(`${i / 10}m`, x, h - 2);
             }
 
-            if (!st.seismoData || st.seismoData.length === 0) return;
+            if (st.seismoData && st.seismoData.length > 0) {
+                const activeEnd = Math.min(animationTime, st.seismoData.length - 1);
 
-            const activeEnd = Math.min(animationTime, st.seismoData.length - 1);
-
-            sCtx.strokeStyle = st.color;
-            sCtx.lineWidth = 1.8;
-            sCtx.beginPath();
-            for (let t = 0; t <= activeEnd; t++) {
-                const x = (t / maxTime) * w;
-                const y = midY + st.seismoData[t];
-                if (t === 0) sCtx.moveTo(x, y);
-                else sCtx.lineTo(x, y);
-            }
-            sCtx.stroke();
-
-            if (!st.pShadow && animationTime >= st.pArrival && st.pArrival <= maxTime) {
-                const px = (st.pArrival / maxTime) * w;
-                sCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
-                sCtx.setLineDash([2, 2]);
+                sCtx.strokeStyle = st.color;
+                sCtx.lineWidth = 1.8;
                 sCtx.beginPath();
-                sCtx.moveTo(px, 0);
-                sCtx.lineTo(px, h);
+                for (let t = 0; t <= activeEnd; t++) {
+                    const x = (t / maxTime) * w;
+                    const y = midY + st.seismoData[t];
+                    if (t === 0) sCtx.moveTo(x, y);
+                    else sCtx.lineTo(x, y);
+                }
                 sCtx.stroke();
-                sCtx.setLineDash([]);
-                sCtx.fillStyle = '#8be9fd';
-                sCtx.fillText('P', px + 4, 10);
             }
 
-            if (!st.sShadow && animationTime >= st.sArrival && st.sArrival <= maxTime) {
-                const sx = (st.sArrival / maxTime) * w;
-                sCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
-                sCtx.setLineDash([2, 2]);
-                sCtx.beginPath();
-                sCtx.moveTo(sx, 0);
-                sCtx.lineTo(sx, h);
-                sCtx.stroke();
-                sCtx.setLineDash([]);
-                sCtx.fillStyle = '#ff79c6';
-                sCtx.fillText('S', sx + 4, 10);
+            // Drawn on top with outline for clear contrast against the wave
+            sCtx.textAlign = 'center';
+            sCtx.font = 'bold 9px "Segoe UI", sans-serif';
+            for (let i = 100; i <= maxTime; i += 100) {
+                const x = (i / maxTime) * w;
+                const txt = `${i / 10}m`;
+                sCtx.strokeStyle = '#2b2b36';
+                sCtx.lineWidth = 3;
+                sCtx.strokeText(txt, x, h - 2);
+                sCtx.fillStyle = '#aaa';
+                sCtx.fillText(txt, x, h - 2);
+            }
+
+            if (st.seismoData && st.seismoData.length > 0) {
+                if (!st.pShadow && animationTime >= st.pArrival && st.pArrival <= maxTime) {
+                    const px = (st.pArrival / maxTime) * w;
+                    sCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
+                    sCtx.setLineDash([2, 2]);
+                    sCtx.beginPath();
+                    sCtx.moveTo(px, 0);
+                    sCtx.lineTo(px, h);
+                    sCtx.stroke();
+                    sCtx.setLineDash([]);
+                    sCtx.font = 'bold 11px "Segoe UI", sans-serif';
+                    sCtx.textAlign = 'left';
+                    sCtx.strokeStyle = '#2b2b36';
+                    sCtx.lineWidth = 3;
+                    sCtx.strokeText('P', px + 4, 12);
+                    sCtx.fillStyle = '#8be9fd';
+                    sCtx.fillText('P', px + 4, 12);
+                }
+
+                if (!st.sShadow && animationTime >= st.sArrival && st.sArrival <= maxTime) {
+                    const sx = (st.sArrival / maxTime) * w;
+                    sCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
+                    sCtx.setLineDash([2, 2]);
+                    sCtx.beginPath();
+                    sCtx.moveTo(sx, 0);
+                    sCtx.lineTo(sx, h);
+                    sCtx.stroke();
+                    sCtx.setLineDash([]);
+                    sCtx.font = 'bold 11px "Segoe UI", sans-serif';
+                    sCtx.textAlign = 'left';
+                    sCtx.strokeStyle = '#2b2b36';
+                    sCtx.lineWidth = 3;
+                    sCtx.strokeText('S', sx + 4, 12);
+                    sCtx.fillStyle = '#ff79c6';
+                    sCtx.fillText('S', sx + 4, 12);
+                }
             }
 
             const currentX = (animationTime / maxTime) * w;
@@ -990,12 +1426,8 @@
 
         mCtx.clearRect(0, 0, w, h);
 
-        // Draw Time Grid
         mCtx.strokeStyle = '#383847';
         mCtx.lineWidth = 1;
-        mCtx.fillStyle = '#aaa';
-        mCtx.font = '11px "Segoe UI", sans-serif';
-        mCtx.textAlign = 'center';
         
         for (let i = 0; i <= maxTime; i += 50) {
             const x = (i / maxTime) * w;
@@ -1003,56 +1435,80 @@
             mCtx.moveTo(x, 0);
             mCtx.lineTo(x, h);
             mCtx.stroke();
+        }
+
+        if (activeModalStation.seismoData && activeModalStation.seismoData.length > 0) {
+            const activeEnd = Math.min(animationTime, activeModalStation.seismoData.length - 1);
+
+            mCtx.strokeStyle = activeModalStation.color;
+            mCtx.lineWidth = 2.5;
+            mCtx.beginPath();
+            
+            const ampScale = 3; 
+
+            for (let t = 0; t <= activeEnd; t++) {
+                const x = (t / maxTime) * w;
+                const y = midY + (activeModalStation.seismoData[t] * ampScale);
+                if (t === 0) mCtx.moveTo(x, y);
+                else mCtx.lineTo(x, y);
+            }
+            mCtx.stroke();
+        }
+
+        // Draw time stamps at bottom with high-contrast background strokes
+        mCtx.font = 'bold 11px "Segoe UI", sans-serif';
+        mCtx.textAlign = 'center';
+        for (let i = 0; i <= maxTime; i += 50) {
             if (i % 100 === 0) {
-                mCtx.fillText(`${i / 10} min`, x, h - 8);
+                const x = (i / maxTime) * w;
+                const txt = `${i / 10} min`;
+                mCtx.strokeStyle = '#1e1e24';
+                mCtx.lineWidth = 3;
+                mCtx.strokeText(txt, x, h - 8);
+                mCtx.fillStyle = '#aaa';
+                mCtx.fillText(txt, x, h - 8);
             }
         }
 
-        if (!activeModalStation.seismoData || activeModalStation.seismoData.length === 0) return;
-
-        const activeEnd = Math.min(animationTime, activeModalStation.seismoData.length - 1);
-
-        mCtx.strokeStyle = activeModalStation.color;
-        mCtx.lineWidth = 2.5;
-        mCtx.beginPath();
-        
-        const ampScale = 3; 
-
-        for (let t = 0; t <= activeEnd; t++) {
-            const x = (t / maxTime) * w;
-            const y = midY + (activeModalStation.seismoData[t] * ampScale);
-            if (t === 0) mCtx.moveTo(x, y);
-            else mCtx.lineTo(x, y);
-        }
-        mCtx.stroke();
-
-        mCtx.font = '14px "Segoe UI", sans-serif';
+        mCtx.font = 'bold 14px "Segoe UI", sans-serif';
         mCtx.textAlign = 'left';
         
-        if (!activeModalStation.pShadow && animationTime >= activeModalStation.pArrival && activeModalStation.pArrival <= maxTime) {
-            const px = (activeModalStation.pArrival / maxTime) * w;
-            mCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
-            mCtx.setLineDash([4, 4]);
-            mCtx.beginPath();
-            mCtx.moveTo(px, 0);
-            mCtx.lineTo(px, h);
-            mCtx.stroke();
-            mCtx.setLineDash([]);
-            mCtx.fillStyle = '#8be9fd';
-            mCtx.fillText(`P-Wave: ${(activeModalStation.pArrival / 10).toFixed(1)} min`, px + 5, 20);
-        }
+        if (activeModalStation.seismoData && activeModalStation.seismoData.length > 0) {
+            if (!activeModalStation.pShadow && animationTime >= activeModalStation.pArrival && activeModalStation.pArrival <= maxTime) {
+                const px = (activeModalStation.pArrival / maxTime) * w;
+                mCtx.strokeStyle = 'rgba(139, 233, 253, 0.6)';
+                mCtx.setLineDash([4, 4]);
+                mCtx.beginPath();
+                mCtx.moveTo(px, 0);
+                mCtx.lineTo(px, h);
+                mCtx.stroke();
+                mCtx.setLineDash([]);
+                
+                const pTxt = `P-Wave: ${(activeModalStation.pArrival / 10).toFixed(1)} min`;
+                mCtx.strokeStyle = '#1e1e24';
+                mCtx.lineWidth = 4;
+                mCtx.strokeText(pTxt, px + 5, 20);
+                mCtx.fillStyle = '#8be9fd';
+                mCtx.fillText(pTxt, px + 5, 20);
+            }
 
-        if (!activeModalStation.sShadow && animationTime >= activeModalStation.sArrival && activeModalStation.sArrival <= maxTime) {
-            const sx = (activeModalStation.sArrival / maxTime) * w;
-            mCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
-            mCtx.setLineDash([4, 4]);
-            mCtx.beginPath();
-            mCtx.moveTo(sx, 0);
-            mCtx.lineTo(sx, h);
-            mCtx.stroke();
-            mCtx.setLineDash([]);
-            mCtx.fillStyle = '#ff79c6';
-            mCtx.fillText(`S-Wave: ${(activeModalStation.sArrival / 10).toFixed(1)} min`, sx + 5, 40);
+            if (!activeModalStation.sShadow && animationTime >= activeModalStation.sArrival && activeModalStation.sArrival <= maxTime) {
+                const sx = (activeModalStation.sArrival / maxTime) * w;
+                mCtx.strokeStyle = 'rgba(255, 121, 198, 0.6)';
+                mCtx.setLineDash([4, 4]);
+                mCtx.beginPath();
+                mCtx.moveTo(sx, 0);
+                mCtx.lineTo(sx, h);
+                mCtx.stroke();
+                mCtx.setLineDash([]);
+                
+                const sTxt = `S-Wave: ${(activeModalStation.sArrival / 10).toFixed(1)} min`;
+                mCtx.strokeStyle = '#1e1e24';
+                mCtx.lineWidth = 4;
+                mCtx.strokeText(sTxt, sx + 5, 40);
+                mCtx.fillStyle = '#ff79c6';
+                mCtx.fillText(sTxt, sx + 5, 40);
+            }
         }
 
         const currentX = (animationTime / maxTime) * w;
@@ -1108,10 +1564,10 @@
                 document.getElementById('layer-name').innerText = "P & S Wave Shadow Zone";
                 document.getElementById('layer-name').style.color = "#bd93f9"; 
                 document.getElementById('layer-radius').innerText = "116° to 142° from Epicenter";
-                document.getElementById('layer-state').innerText = "Blocked & Refracted";
+                document.getElementById('layer-state').innerText = "Blocked & Bent";
                 document.getElementById('layer-temp').innerText = "--";
                 document.getElementById('layer-density').innerText = "--";
-                document.getElementById('layer-prange').innerText = "Refracted away by Core";
+                document.getElementById('layer-prange').innerText = "Bent away by Core";
                 document.getElementById('layer-srange').innerText = "Blocked by Liquid Core";
                 clickedShadow = true;
             } else if (delta > 2.48) {
@@ -1121,7 +1577,7 @@
                 document.getElementById('layer-state').innerText = "S-Waves Blocked";
                 document.getElementById('layer-temp').innerText = "--";
                 document.getElementById('layer-density').innerText = "--";
-                document.getElementById('layer-prange').innerText = "Visible (Refracted through core)";
+                document.getElementById('layer-prange').innerText = "Visible (Bent through core)";
                 document.getElementById('layer-srange').innerText = "Blocked by Liquid Core";
                 clickedShadow = true;
             }
@@ -1137,6 +1593,18 @@
             }
 
             if (selectedLayer) {
+                // Register inspection for Step 7 unlocking
+                inspectedLayers[selectedLayer.id] = true;
+                const tagEl = document.getElementById(`tag-${selectedLayer.id}`);
+                if (tagEl) tagEl.classList.add('visited');
+
+                const allVisited = Object.values(inspectedLayers).every(Boolean);
+                if (allVisited) {
+                    const journal7 = document.getElementById('journal-sec7');
+                    journal7.disabled = false;
+                    document.getElementById('step7-lock-msg').style.display = 'none';
+                }
+
                 document.getElementById('layer-name').innerText = selectedLayer.name;
                 document.getElementById('layer-name').style.color = selectedLayer.color;
                 document.getElementById('layer-radius').innerText = selectedLayer.id === 'crust' ? '6,371 km (Surface)' : `Radius to ~${Math.round((selectedLayer.radius/maxRadius)*6371)} km`;
@@ -1184,7 +1652,499 @@
         document.getElementById('seismographs-wrapper').innerHTML = '';
         render();
     });
+    
+    // --- MATERIAL PROPAGATION ANIMATION ---
+    const pAnimCanvas = document.getElementById('pAnimCanvas');
+    const sAnimCanvas = document.getElementById('sAnimCanvas');
+    const pCtxAnim = pAnimCanvas.getContext('2d');
+    const sCtxAnim = sAnimCanvas.getContext('2d');
+    
+    let isPropAnimating = false;
+    let pPropTime = 0;
+    let sPropTime = 0;
 
+    const toggleProp = () => {
+        isPropAnimating = !isPropAnimating;
+        const instruction = document.querySelector('#prop-content p');
+        if (instruction) {
+            instruction.innerHTML = `Select layer to view motion. <span style="color: ${isPropAnimating ? '#ff5555' : '#50fa7b'}; font-weight: bold;">${isPropAnimating ? '⏸ Click to Pause' : '▶ Click to Play'}</span>`;
+        }
+    };
+    pAnimCanvas.addEventListener('click', toggleProp);
+    sAnimCanvas.addEventListener('click', toggleProp);
+
+    const baseParticles = [];
+    const cols = 24;
+    const rows = 5;
+    for(let r=0; r<rows; r++){
+        for(let c=0; c<cols; c++){
+            baseParticles.push({
+                r: r, c: c,
+                x: 10 + c * (260 / (cols-1)),
+                y: 10 + r * (40 / (rows-1)),
+                liquidOffsetX: (Math.random()-0.5)*12,
+                liquidOffsetY: (Math.random()-0.5)*12
+            });
+        }
+    }
+
+    function renderPropagation() {
+        const layer = selectedLayer || layers[2];
+
+        if (isPropAnimating) {
+            const pVel = layer.pVelRange[0]; 
+            const sVel = layer.sVelRange[0]; 
+            
+            pPropTime += pVel * 0.012; 
+            sPropTime += sVel * 0.012; 
+        }
+
+        drawWaveType(pCtxAnim, true, pPropTime, layer);
+        drawWaveType(sCtxAnim, false, sPropTime, layer);
+        
+        requestAnimationFrame(renderPropagation);
+    }
+
+    function drawWaveType(ctx, isP, currentTime, layer) {
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const layerId = layer.id;
+        let color = '#f8f8f2';
+        let isLiquid = false;
+        let sWaveBlocked = false;
+        let blockedMsg = "";
+
+        if (layerId === 'crust') color = '#7a8cb8'; 
+        else if (layerId === 'mantle') color = '#f1fa8c'; 
+        else if (layerId === 'outer_core') { 
+            color = '#ffb86c'; 
+            isLiquid = true; 
+            if(!isP) { sWaveBlocked = true; blockedMsg = "S-Waves Blocked by Liquid"; }
+        }
+        else if (layerId === 'inner_core') { 
+            color = '#ff5555'; 
+            if(!isP) { sWaveBlocked = true; blockedMsg = "Blocked by Outer Core"; }
+        }
+
+        if (sWaveBlocked) {
+            ctx.fillStyle = 'rgba(255, 121, 198, 0.8)';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(blockedMsg, w/2, h/2);
+            return;
+        }
+
+        let currentParticles = baseParticles.map(p => {
+            let finalX = p.x;
+            let finalY = p.y;
+            
+            if (isLiquid) {
+                finalX += p.liquidOffsetX + Math.sin(currentTime*0.5 + p.c)*2;
+                finalY += p.liquidOffsetY + Math.cos(currentTime*0.5 + p.r)*2;
+            }
+
+            const vel = isP ? layer.pVelRange[0] : layer.sVelRange[0];
+            const wavelengthMod = Math.max(0.25, 0.45 * (8.0 / vel)); 
+            const wavePhase = currentTime - (p.c * wavelengthMod);
+            
+            if (isP) {
+                finalX += Math.sin(wavePhase) * 6; 
+            } else {
+                finalY += Math.sin(wavePhase) * 6; 
+            }
+            return { ...p, fx: finalX, fy: finalY };
+        });
+
+        if (!isLiquid) {
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let r=0; r<rows-1; r++) {
+                for (let c=0; c<cols-1; c++) {
+                    let idx = r*cols + c;
+                    let p1 = currentParticles[idx];
+                    
+                    if (currentParticles[idx+1]) {
+                        ctx.moveTo(p1.fx, p1.fy);
+                        ctx.lineTo(currentParticles[idx+1].fx, currentParticles[idx+1].fy); 
+                    }
+                    if (currentParticles[(r+1)*cols + c]) {
+                        ctx.moveTo(p1.fx, p1.fy);
+                        ctx.lineTo(currentParticles[(r+1)*cols + c].fx, currentParticles[(r+1)*cols + c].fy); 
+                    }
+                }
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+
+        ctx.fillStyle = color;
+        currentParticles.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.fx, p.fy, isLiquid ? 2.5 : 2, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        if (!isPropAnimating) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, w, h);
+        }
+    }
+
+    // --- DIGITAL JOURNAL & MODAL CONTROLS ---
+    const journalModal = document.getElementById('journalModal');
+    const openJournalBtn = document.getElementById('openJournalBtn');
+    const journalSaveStatus = document.getElementById('journalSaveStatus');
+
+    const journalFields = ['journal-sec2', 'journal-sec6-compare', 'journal-sec6-shadow', 'journal-sec7', 'journal-sec8', 'stn1-interval', 'stn3-interval'];
+
+    openJournalBtn.addEventListener('click', () => {
+        journalModal.classList.add('show');
+        openJournalBtn.classList.remove('strobe');
+    });
+
+    // Save/Restore Journal Data
+    function saveJournalData() {
+        const data = {};
+        journalFields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) data[id] = el.value;
+        });
+        localStorage.setItem('earthquakeJournalSections', JSON.stringify(data));
+        journalSaveStatus.innerText = "Saved locally ✓";
+        journalSaveStatus.style.color = "var(--success)";
+    }
+
+    function restoreJournalData() {
+        const raw = localStorage.getItem('earthquakeJournalSections');
+        if (raw) {
+            try {
+                const data = JSON.parse(raw);
+                Object.keys(data).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = data[id];
+                });
+            } catch (e) {}
+        }
+    }
+
+    journalFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                journalSaveStatus.innerText = "Saving changes...";
+                journalSaveStatus.style.color = "var(--accent)";
+                setTimeout(saveJournalData, 600);
+            });
+        }
+    });
+
+    restoreJournalData();
+
+    document.getElementById('saveJournalBtn').addEventListener('click', () => {
+        saveJournalData();
+        alert('Digital Journal entries saved successfully!');
+    });
+
+    document.getElementById('clearJournalBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear your journal notes? This action cannot be undone.')) {
+            localStorage.removeItem('earthquakeJournalSections');
+            journalFields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            journalSaveStatus.innerText = "Cleared ✓";
+        }
+    });
+
+    // Step 6 Interval Verification
+    function verifyStep6Intervals() {
+        const stn1 = stations.find(s => s.id === 0);
+        const stn3 = stations.find(s => s.id === 2);
+        const feedback = document.getElementById('step6-interval-feedback');
+
+        const val1 = parseFloat(document.getElementById('stn1-interval').value);
+        const val3 = parseFloat(document.getElementById('stn3-interval').value);
+
+        if (isNaN(val1) || isNaN(val3)) {
+            feedback.className = "feedback error";
+            feedback.innerText = "Please enter numeric readings for both Station 1 and Station 3.";
+            return false;
+        }
+
+        if (!stn1 || !stn3 || stn1.pArrival === undefined || stn3.pArrival === undefined) {
+            feedback.className = "feedback error";
+            feedback.innerText = "Deploy Station 1 (~45°) and Station 3 (~110°) and click TRIGGER first!";
+            return false;
+        }
+
+        const exp1 = (stn1.sArrival - stn1.pArrival) / 10;
+        const exp3 = (stn3.sArrival - stn3.pArrival) / 10;
+
+        const is1Correct = Math.abs(val1 - exp1) <= 0.1;
+        const is3Correct = Math.abs(val3 - exp3) <= 0.1;
+
+        if (is1Correct && is3Correct) {
+            feedback.className = "feedback success";
+            feedback.innerText = "✓ S-P interval measurements verified successfully!";
+            return true;
+        } else {
+            feedback.className = "feedback error";
+            feedback.innerText = `✗ Out of range. Expected: Station 1 ~${exp1.toFixed(1)} min, Station 3 ~${exp3.toFixed(1)} min.`;
+            return false;
+        }
+    }
+
+    // Step 8 Validation Engine
+    function submitStep8() {
+        const text = document.getElementById('journal-sec8').value.trim();
+        const feedback = document.getElementById('step8-feedback');
+
+        if (!isRealText(text, 10)) {
+            feedback.className = "feedback error";
+            feedback.innerText = "Validation Failed: Please write a complete explanation using real words and sentences.";
+            return false;
+        }
+
+        const startsCapital = /^[A-Z]/.test(text);
+        const endsPunctuation = /[.!?]$/.test(text);
+
+        if (!startsCapital || !endsPunctuation) {
+            feedback.className = "feedback error";
+            feedback.innerText = "Validation Failed: Ensure your response starts with a capital letter and ends with punctuation.";
+            return false;
+        }
+
+        const lower = text.toLowerCase();
+        const hasConcepts = /wave|speed|velocity|path|core|liquid|solid|layer|bend|refract|block|stop|depth|density|structure|interior/i.test(lower);
+
+        if (!hasConcepts) {
+            feedback.className = "feedback error";
+            feedback.innerText = "Validation Failed: Please explain how wave speed and path changes reveal Earth's internal structure.";
+            return false;
+        }
+
+        feedback.className = "feedback success";
+        feedback.innerText = "✓ Section 8 response validated and accepted successfully!";
+        return true;
+    }
+
+    // --- LAB CURRICULUM WITH RIGOROUS SCIENTIFIC CHECKING ---
+    const labGuideCard = document.getElementById('labGuideCard');
+    const labPromptText = document.getElementById('labPromptText');
+    const labStepTitle = document.getElementById('labStepTitle');
+    const labFeedback = document.getElementById('labFeedback');
+    const checkWorkBtn = document.getElementById('checkWorkBtn');
+    const nextLabBtn = document.getElementById('nextLabBtn');
+    const freePlayBtn = document.getElementById('freePlayBtn');
+    const labModeBtn = document.getElementById('labModeBtn');
+
+    let currentMode = 'freeplay';
+
+    const labSteps = [
+        {
+            title: "Step 1: Epicenter Setup",
+            prompt: "Drag the Epicenter tool onto the surface of the Earth to initiate seismic activity.",
+            validate: () => {
+                if (epicenterAngle === null) {
+                    return { pass: false, err: "You haven't placed the epicenter yet! Drag the red '!' marker onto the globe." };
+                }
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 2: Wave Motion Observation",
+            prompt: "Review the particle motion hint in Section 2 of your Digital Journal, then describe your observations of particle movement for both P and S waves.",
+            validate: () => {
+                const text = document.getElementById('journal-sec2').value.trim();
+                if (!isRealText(text, 6)) {
+                    return { pass: false, err: "Open your Digital Journal and write a complete description of particle movement in Section 2!" };
+                }
+                const hasP = /\bp-?waves?\b|\bprimary\b|\bp\b|\bcompress/i.test(text);
+                const hasS = /\bs-?waves?\b|\bsecondary\b|\bs\b|\btransverse|\bside/i.test(text);
+                if (!hasP || !hasS) {
+                    return { pass: false, err: "Your Section 2 journal entry must describe particle motion for BOTH P-waves and S-waves!" };
+                }
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 3: Deploy Stations 1, 2, and 3",
+            prompt: "Turn on the Epicentral Angle Markers (°) and Show Shadow Zones in the toolbox so you know where to place each station. Drag Station 1 to ~45°, Station 2 into the S-wave shadow zone (>120°), and Station 3 to ~110°.",
+            validate: () => {
+                if (!degreeToggle.checked) {
+                    return { pass: false, err: "Check 'Show Epicentral Angle Markers (°)' in the toolbox to help position the stations." };
+                }
+                const st1 = stations.find(s => s.id === 0);
+                const st2 = stations.find(s => s.id === 1);
+                const st3 = stations.find(s => s.id === 2);
+                if (!st1 || !st2 || !st3) return { pass: false, err: "Deploy all three stations (Station 1, Station 2, Station 3) onto the globe." };
+
+                let d1 = Math.abs(epicenterAngle - st1.angle);
+                d1 = Math.min(d1, 2 * Math.PI - d1) * (180 / Math.PI);
+
+                let d2 = Math.abs(epicenterAngle - st2.angle);
+                d2 = Math.min(d2, 2 * Math.PI - d2) * (180 / Math.PI);
+
+                let d3 = Math.abs(epicenterAngle - st3.angle);
+                d3 = Math.min(d3, 2 * Math.PI - d3) * (180 / Math.PI);
+
+                if (d1 < 25 || d1 > 65) return { pass: false, err: `Station 1 is at ${d1.toFixed(0)}°. Move it closer to ~45°.` };
+                if (d2 <= 103) return { pass: false, err: `Station 2 is at ${d2.toFixed(0)}°. Move it into the S-wave shadow zone (~120°).` };
+                if (d3 < 95 || d3 > 120) return { pass: false, err: `Station 3 is at ${d3.toFixed(0)}°. Move it closer to ~110°.` };
+
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 4: Wavefront Observation",
+            prompt: "Click the TRIGGER button. Watch the wavefronts travel through the interior.",
+            validate: () => {
+                if (!isAnimating && animationTime === 0) {
+                    return { pass: false, err: "Click the TRIGGER button to send seismic waves through the planet." };
+                }
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 5: Station Intervals & Shadow Zone Analysis",
+            prompt: "Open Section 6 in your Digital Journal. Enter your Station 1 and Station 3 S-P intervals, compare them, and explain why Station 2 recorded no S-waves.",
+            validate: () => {
+                const verified = verifyStep6Intervals();
+                if (!verified) return { pass: false, err: "Verify your numeric interval inputs in Section 6." };
+
+                const compareTxt = document.getElementById('journal-sec6-compare').value.trim();
+                const shadowTxt = document.getElementById('journal-sec6-shadow').value.trim();
+
+                if (!isRealText(compareTxt, 6)) {
+                    return { pass: false, err: "Provide a complete answer for question 1 in Section 6 comparing Station 1 and 3 intervals!" };
+                }
+                if (!isRealText(shadowTxt, 6)) {
+                    return { pass: false, err: "Provide a complete answer for question 2 in Section 6 explaining Station 2's shadow zone!" };
+                }
+
+                const compareLower = compareTxt.toLowerCase();
+                const hasCompareConcept = /distanc|further|farther|longer|time|location|increas|delay|greater|travel|far|close|min/i.test(compareLower);
+                if (!hasCompareConcept) {
+                    return { pass: false, err: "In Section 6 Question 1, make sure to address how distance/location affects the arrival interval." };
+                }
+
+                const shadowLower = shadowTxt.toLowerCase();
+                const hasShadowConcept = /outer\s*core|liquid|block/i.test(shadowLower);
+                if (!hasShadowConcept) {
+                    return { pass: false, err: "In Section 6 Question 2, make sure to use terminology like outer core, liquid, or blocked to explain why S-waves are missing." };
+                }
+
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 6: Layer-by-Layer Propagation",
+            prompt: "Click and inspect all four layers (Crust, Mantle, Outer Core, Inner Core) on Earth. Use the slow-mo time scrubber to watch the wave arcs on the globe and observe the material propagation animation, then explain how wave behavior changes in each layer in Section 7 of your Digital Journal.",
+            validate: () => {
+                const allVisited = Object.values(inspectedLayers).every(Boolean);
+                if (!allVisited) return { pass: false, err: "Click all 4 Earth layers to inspect them!" };
+
+                const sec7Text = document.getElementById('journal-sec7').value.trim();
+                if (!isRealText(sec7Text, 12)) {
+                    return { pass: false, err: "Be sure to include each layer in your answer." };
+                }
+
+                const lower = sec7Text.toLowerCase();
+                const hasCrust = /crust|crus|crst/i.test(lower);
+                const hasMantle = /mantle|mantel|mentle|manle/i.test(lower);
+                const hasOuterCore = /outer\s*core|outer|outrcore/i.test(lower);
+                const hasInnerCore = /inner\s*core|inner|innrcore/i.test(lower);
+
+                if (!hasCrust || !hasMantle || !hasOuterCore || !hasInnerCore) {
+                    return { pass: false, err: "Be sure to include each layer in your answer." };
+                }
+
+                return { pass: true };
+            }
+        },
+        {
+            title: "Step 7: Final Synthesis & Wave Physics",
+            prompt: "Complete Section 8 in your Digital Journal by explaining how wave speed and path changes reveal Earth's internal structure.",
+            validate: () => {
+                const isValid = submitStep8();
+                if (!isValid) return { pass: false, err: "Fix the errors in Section 8 before proceeding." };
+                return { pass: true };
+            }
+        }
+    ];
+
+    let currentStepIndex = 0;
+
+    function loadStep(index) {
+        labStepTitle.innerText = labSteps[index].title;
+        labPromptText.innerText = labSteps[index].prompt;
+        labFeedback.style.display = 'none';
+        checkWorkBtn.style.display = 'block';
+        nextLabBtn.style.display = 'none';
+
+        if ([1, 4, 5, 6].includes(index)) {
+            openJournalBtn.classList.add('strobe');
+        } else {
+            openJournalBtn.classList.remove('strobe');
+        }
+    }
+
+    checkWorkBtn.addEventListener('click', () => {
+        const step = labSteps[currentStepIndex];
+        const res = step.validate();
+
+        labFeedback.style.display = 'block';
+        if (res.pass) {
+            labFeedback.style.background = 'rgba(80, 250, 123, 0.2)';
+            labFeedback.style.border = '1px solid #50fa7b';
+            labFeedback.style.color = '#50fa7b';
+            labFeedback.innerText = "✅ Excellent! Verification passed.";
+            checkWorkBtn.style.display = 'none';
+            nextLabBtn.style.display = 'block';
+        } else {
+            labFeedback.style.background = 'rgba(255, 85, 85, 0.2)';
+            labFeedback.style.border = '1px solid #ff5555';
+            labFeedback.style.color = '#ff5555';
+            labFeedback.innerText = "❌ " + res.err;
+        }
+    });
+
+    nextLabBtn.addEventListener('click', () => {
+        currentStepIndex++;
+        if (currentStepIndex < labSteps.length) {
+            loadStep(currentStepIndex);
+        } else {
+            labStepTitle.innerText = "Lab Complete! 🎉";
+            labPromptText.innerText = "Outstanding work! You have completed all seismic analysis steps. Make sure to save your Digital Journal.";
+            labFeedback.style.display = 'none';
+            checkWorkBtn.style.display = 'none';
+            nextLabBtn.style.display = 'none';
+        }
+    });
+
+    labModeBtn.addEventListener('click', () => {
+        currentMode = 'lab';
+        labModeBtn.classList.add('active');
+        freePlayBtn.classList.remove('active');
+        labGuideCard.style.display = 'block';
+        currentStepIndex = 0;
+        loadStep(0);
+    });
+
+    freePlayBtn.addEventListener('click', () => {
+        currentMode = 'freeplay';
+        freePlayBtn.classList.add('active');
+        labModeBtn.classList.remove('active');
+        labGuideCard.style.display = 'none';
+        openJournalBtn.classList.remove('strobe');
+    });
+
+    renderPropagation(); 
     render();
 </script>
 
